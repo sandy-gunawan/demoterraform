@@ -20,8 +20,13 @@ This folder contains Terraform configuration for the CRM application in dev envi
 ## 📋 Prerequisites
 
 Ensure platform team has deployed:
-- ✅ Global standards (`dev-shared/1-global`)
-- ✅ Landing zone (`dev-shared/2-landing-zone`)
+- ✅ Global standards (`infra/global/`)
+- ✅ Landing zone with networking (`infra/envs/dev/`)
+
+Verify:
+```bash
+az network vnet show --resource-group rg-contoso-dev-network-001 --name vnet-contoso-dev-001
+```
 
 ---
 

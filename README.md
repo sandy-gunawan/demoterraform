@@ -41,7 +41,8 @@ terraform-infrastructure/
 │   └── executive/                 # Management documentation
 ├── examples/                      # Working examples
 │   ├── aks-application/          # Complete AKS deployment
-│   └── landing-zone/             # Enterprise landing zone
+│   ├── enterprise-hub-spoke/     # Enterprise hub-spoke architecture
+│   └── pattern-2-delegated/      # Multi-team delegation
 └── README.md                      # This file
 ```
 
@@ -122,7 +123,7 @@ Each module has its own "How It Works" guide:
 - **[AKS (Kubernetes)](infra/modules/aks/HOW-IT-WORKS.md)** - Containers, pods, networking
 - **[Container Apps](infra/modules/container-app/HOW-IT-WORKS.md)** - Serverless containers
 - **[Cosmos DB](infra/modules/cosmosdb/HOW-IT-WORKS.md)** - NoSQL database, partitions
-- **[Landing Zone](infra/modules/landing-zone/HOW-IT-WORKS.md)** - Shared foundation
+
 - **[Networking](infra/modules/networking/HOW-IT-WORKS.md)** - VNets, subnets, NSGs
 - **[Security](infra/modules/security/HOW-IT-WORKS.md)** - Key Vault, secrets
 - **[Web App](infra/modules/webapp/HOW-IT-WORKS.md)** - App Service, slots
@@ -132,7 +133,8 @@ Each module has its own "How It Works" guide:
 
 ### Examples
 - **[AKS Application](examples/aks-application/README.md)** - Full Kubernetes deployment
-- **[Landing Zone](examples/landing-zone/README.md)** - Enterprise hub-spoke architecture
+- **[Enterprise Hub-Spoke](examples/enterprise-hub-spoke/README.md)** - Multi-subscription architecture
+- **[Pattern 2: Delegated](examples/pattern-2-delegated/README.md)** - Multi-team deployment
 
 ## 💰 Cost Estimates
 

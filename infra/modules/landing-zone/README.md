@@ -252,9 +252,9 @@ Landing Zone (Shared Foundation)
 ## Examples
 
 See the `examples/` folder for complete deployment examples:
-- `examples/landing-zone/` - Full Landing Zone setup
-- `examples/aks-on-landing-zone/` - AKS using Landing Zone
-- `examples/container-apps-on-landing-zone/` - Container Apps using Landing Zone
+- `examples/enterprise-hub-spoke/` - Advanced hub-spoke architecture
+- `examples/aks-application/` - Complete AKS deployment
+- `examples/pattern-2-delegated/` - Multi-team deployment
 
 ## Requirements
 

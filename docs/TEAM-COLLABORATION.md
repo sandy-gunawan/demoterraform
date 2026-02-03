@@ -202,21 +202,24 @@ git clone https://github.com/your-org/terraform-framework.git
 cd terraform-framework
 ```
 
-**Step 2: Create your app folder** (if first time)
+**Step 2: Use examples as templates**
 ```bash
-# Platform team creates folder structure for you
-cd environments/
-mkdir -p dev-app-ecommerce/3-workloads
+# Reference the pattern-2-delegated examples
+cd examples/pattern-2-delegated/dev-app-ecommerce
+
+# Review the example configuration
+cat main.tf
+cat dev.tfvars
 ```
 
-**Step 3: Configure your workload**
+**Step 3: Copy and customize for your app**
 ```bash
-cd environments/dev-app-ecommerce/3-workloads
+# Copy the example that fits your needs
+cp -r examples/pattern-2-delegated/dev-app-ecommerce my-app/
 
-# Copy template from examples
-cp ../../../examples/aks-application/main.tf .
-cp ../../../examples/aks-application/dev.tfvars .
-cp ../../../examples/aks-application/backend.tf .
+# Customize the configuration
+cd my-app/
+# Edit main.tf and dev.tfvars for your needs
 ```
 
 **Step 4: Fill in parameters** (see [STEP-BY-STEP-EXAMPLE.md](STEP-BY-STEP-EXAMPLE.md))
@@ -237,8 +240,8 @@ git push origin feature/ecommerce-infrastructure
 
 **Step 7: Merge and deploy**
 ```bash
-# After approval, CI/CD pipeline runs:
-cd environments/dev-app-ecommerce/3-workloads
+# After approval, deploy from your customized location:
+cd my-app/
 terraform init
 terraform apply -var-file="dev.tfvars" -auto-approve
 ```

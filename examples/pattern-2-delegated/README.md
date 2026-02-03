@@ -37,13 +37,13 @@ environments/
 Create shared foundation once:
 
 ```bash
-# Global standards
-cd environments/dev-shared/1-global
+# Global standards (Layer 0)
+cd infra/global
 terraform init
-terraform apply -var-file="dev.tfvars"
+terraform apply
 
-# Landing zone
-cd ../2-landing-zone
+# Landing Zone (Layer 1 - networking foundation)
+cd ../envs/dev
 terraform init
 terraform apply -var-file="dev.tfvars"
 ```
@@ -53,15 +53,17 @@ terraform apply -var-file="dev.tfvars"
 Each team manages their own workload:
 
 ```bash
-# E-commerce team
-cd environments/dev-app-ecommerce/3-workloads
+# E-commerce team (using example as reference)
+cd examples/pattern-2-delegated/dev-app-ecommerce
 terraform init
 terraform apply -var-file="dev.tfvars"
 
-# CRM team (separate state)
-cd environments/dev-app-crm/3-workloads
+# CRM team (separate state, separate example)
+cd examples/pattern-2-delegated/dev-app-crm
 terraform init
 terraform apply -var-file="dev.tfvars"
+
+# Note: In practice, you'd copy these examples to your own location
 ```
 
 ## 📚 See Also

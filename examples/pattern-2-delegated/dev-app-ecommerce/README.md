@@ -20,8 +20,14 @@ This folder contains Terraform configuration for the e-commerce application in d
 ## 📋 Prerequisites
 
 Ensure platform team has deployed:
-- ✅ Global standards (`dev-shared/1-global`)
-- ✅ Landing zone (`dev-shared/2-landing-zone`)
+- ✅ Global standards (`infra/global/`)
+- ✅ Landing zone (`infra/envs/dev/` with `enable_aks = true`)
+
+Verify:
+```bash
+az aks show --resource-group rg-contoso-dev-aks-001 --name aks-contoso-dev-001
+az network vnet show --resource-group rg-contoso-dev-network-001 --name vnet-contoso-dev-001
+```
 
 ---
 

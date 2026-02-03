@@ -1,12 +1,14 @@
-# Azure Landing Zone Example
+# Azure Enterprise Hub-Spoke Architecture Example
+
+**Note:** This example demonstrates an **advanced enterprise architecture pattern** with hub-spoke networking across multiple subscriptions. This is DIFFERENT from the "Landing Zone" (Layer 1) concept used elsewhere in this framework.
 
 ## Overview
 
-This example demonstrates how to use the same Terraform framework structure to create an Azure Landing Zone - a foundational cloud environment that provides governance, security, and connectivity for multiple applications and teams.
+This example shows how to build an enterprise-grade hub-spoke network topology - a centralized architecture for large organizations with multiple applications and teams.
 
-## What Is a Landing Zone?
+## What Is Hub-Spoke Architecture?
 
-An Azure Landing Zone is a pre-configured environment that includes:
+A hub-spoke architecture is an advanced networking pattern that includes:
 - **Network Hub**: Centralized networking with firewall and gateway
 - **Shared Services**: Common resources like monitoring, security, and identity
 - **Governance**: Policies, RBAC, and compliance controls
@@ -91,7 +93,7 @@ The same modular structure used for individual applications can be scaled to cre
 ## File Structure
 
 ```
-landing-zone/
+enterprise-hub-spoke/
 ├── main.tf              # Main configuration
 ├── variables.tf         # Input variables
 ├── terraform.tfvars     # Variable values
@@ -136,7 +138,7 @@ spoke_networks = {
 ### 2. Deploy Hub Network
 
 ```bash
-cd examples/landing-zone
+cd examples/enterprise-hub-spoke
 terraform init
 terraform plan
 terraform apply
