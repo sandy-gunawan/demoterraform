@@ -702,15 +702,17 @@ How your teams work with this Terraform framework depends on your organizational
 
 ```
 terraform-framework/
-├── environments/
-│   ├── dev/
-│   │   ├── 1-global/          ← Platform team manages
-│   │   ├── 2-landing-zone/    ← Platform team manages
-│   │   └── 3-workloads/       ← Platform team manages
-│   └── prod/
-│       ├── 1-global/          ← Platform team manages
-│       ├── 2-landing-zone/    ← Platform team manages
-│       └── 3-workloads/       ← Platform team manages
+├── infra/
+│   ├── global/                ← Platform team manages (Layer 0)
+│   ├── envs/
+│   │   ├── dev/               ← Platform team manages (Layer 1 + 2)
+│   │   │   ├── main.tf        ← Contains Landing Zone + Workloads
+│   │   │   ├── dev.tfvars     ← Feature toggles (what to deploy)
+│   │   │   └── backend.tf
+│   │   └── prod/              ← Platform team manages (Layer 1 + 2)
+│   │       ├── main.tf
+│   │       └── prod.tfvars
+│   └── modules/               ← Shared modules
 ```
 
 **How it works:**
@@ -736,24 +738,29 @@ terraform-framework/
 
 ```
 terraform-framework/
-├── environments/
-│   ├── dev-shared/
-│   │   ├── 1-global/          ← Platform team manages
-│   │   └── 2-landing-zone/    ← Platform team manages
-│   ├── dev-app-ecommerce/
-│   │   └── 3-workloads/       ← E-commerce team manages
-│   ├── dev-app-crm/
-│   │   └── 3-workloads/       ← CRM team manages
-│   └── prod-shared/
-│       ├── 1-global/          ← Platform team manages
-│       └── 2-landing-zone/    ← Platform team manages
+├── infra/
+│   ├── global/                ← Platform team: Global standards
+│   ├── envs/
+│   │   ├── dev-shared/        ← Platform team: Landing Zone
+│   │   │   ├── main.tf        ← VNet, subnets, NSGs, logs
+│   │   │   └── dev.tfvars
+│   │   ├── dev-app-ecommerce/ ← E-commerce team: Workloads
+│   │   │   ├── main.tf        ← AKS, Cosmos DB, Key Vault
+│   │   │   └── dev.tfvars
+│   │   ├── dev-app-crm/       ← CRM team: Workloads
+│   │   │   ├── main.tf        ← App Service, Cosmos DB
+│   │   │   └── dev.tfvars
+│   │   └── prod-shared/       ← Platform team: Landing Zone
+│   │       ├── main.tf
+│   │       └── prod.tfvars
+│   └── modules/               ← Shared reusable modules
 ```
 
 **How it works:**
-- Platform team maintains global + landing zone (foundation)
+- Platform team maintains global + Landing Zone (foundation)
 - Each app team has their own folder and state file
 - App teams self-service their infrastructure needs
-- All teams use SAME module structure from `_shared/`
+- All teams use SAME module structure from `modules/`
 
 **Pros:**
 - ✅ App teams have autonomy

@@ -20,6 +20,42 @@ This guide walks you through deploying a complete application infrastructure **f
 
 ---
 
+## 🏗️ Understanding the Framework Structure
+
+**IMPORTANT:** Before you start, understand where things live in the actual folder structure.
+
+### Actual Folder Structure
+```
+terraform-framework/
+├── infra/
+│   ├── global/           ← Layer 0: Global standards
+│   ├── envs/
+│   │   └── dev/          ← Layer 1 + 2 combined!
+│   │       ├── main.tf   ← Contains BOTH Landing Zone AND Workloads
+│   │       └── dev.tfvars ← Feature toggles (what to enable)
+│   └── modules/          ← Reusable modules (aks, cosmosdb, etc.)
+```
+
+### The 3 Logical Layers (in main.tf)
+
+**Layer 0: Global Standards** (`infra/global/`)  
+- Naming conventions, tags, provider config  
+- Deploy once, used by all environments
+
+**Layer 1: Landing Zone** (networking section of `main.tf`)  
+- VNet, subnets, NSGs, Log Analytics  
+- Deployed once per environment  
+- Provides networking foundation for all apps
+
+**Layer 2: Workloads** (workload section of `main.tf`)  
+- AKS, Cosmos DB, Key Vault, etc.  
+- Toggle on/off via `dev.tfvars`  
+- Uses subnets from Layer 1
+
+**Key insight:** Landing Zone isn't a separate folder - it's the networking section in your environment's `main.tf` file!
+
+---
+
 ## 📋 Prerequisites Checklist
 
 Before you start, ensure you have:
@@ -30,6 +66,7 @@ Before you start, ensure you have:
 - [ ] Git installed
 - [ ] Access to your company's Terraform repository
 - [ ] Your team's information (team name, cost center, tech lead email)
+- [ ] **Landing Zone already deployed** (VNet, subnets, NSGs) by Platform team
 
 ---
 
@@ -147,24 +184,31 @@ git checkout -b feature/tasks-api-infrastructure
 ### Step 4: Choose Your Deployment Pattern
 
 **Pattern 1 (Centralized):** Platform team manages everything
-- ➡️ Go to: `environments/dev/3-workloads/`
-- You'll edit existing files
+- ➡️ Go to: `infra/envs/dev/`
+- You'll edit `dev.tfvars` to enable features
+- Landing Zone (VNet, subnets) already deployed
+- You're just toggling workloads on/off
 
 **Pattern 2 (Delegated):** Your team manages your own folder
 - ➡️ Copy from: `examples/pattern-2-delegated/dev-app-ecommerce/`
-- Create: `environments/dev-app-tasks/3-workloads/`
+- Create: `infra/envs/dev-app-tasks/`
+- You'll create your own `main.tf` and `dev.tfvars`
 
 **For this example, we'll use Pattern 1 (simpler for first time).**
 
 ```bash
-cd environments/dev/3-workloads
+cd infra/envs/dev
 ```
 
 ---
 
 ### Step 5: Edit the Configuration File
 
-**Open:** `environments/dev/3-workloads/dev.tfvars`
+**Open:** `infra/envs/dev/dev.tfvars`
+
+**Important:** The `main.tf` in this folder contains BOTH:
+- 🏗️ Landing Zone code (networking - already deployed)
+- 🚀 Workload code (AKS, Cosmos DB - you're enabling via toggles)
 
 **What to fill in order:**
 
@@ -490,13 +534,24 @@ terraform apply -var-file="dev.tfvars"
 **Deployment time:** 15-20 minutes (AKS takes longest)
 
 **What happens:**
+
+**If Landing Zone not yet deployed:**
 1. Creates resource group
-2. Creates VNet and subnets (from landing zone)
-3. Creates AKS cluster (~15 min)
-4. Creates Cosmos DB (~2 min)
-5. Creates Key Vault (~1 min)
-6. Configures permissions
-7. Stores outputs
+2. 🏗️ **Layer 1: Landing Zone**
+   - Creates VNet (10.1.0.0/16)
+   - Creates subnets (aks-subnet, app-subnet, data-subnet)
+   - Creates NSGs
+   - Creates Log Analytics Workspace
+3. 🚀 **Layer 2: Workloads** (what you enabled)
+   - Creates AKS cluster (~15 min)
+   - Creates Cosmos DB (~2 min)
+   - Creates Key Vault (~1 min)
+4. Configures permissions
+5. Stores outputs
+
+**If Landing Zone already deployed:**
+- Terraform sees Layer 1 in state file, skips it ✅
+- Only creates new workloads you enabled ✅
 
 ---
 

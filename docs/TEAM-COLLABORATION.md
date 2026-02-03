@@ -8,9 +8,10 @@ This guide explains how different teams work together using this Terraform frame
 
 ### Platform/Infrastructure Team
 **Responsibilities:**
-- Maintain global standards (1-global/)
-- Manage landing zones (2-landing-zone/)
-- Create and update shared modules (_shared/)
+- Maintain global standards (`infra/global/`)
+- Manage Landing Zones (Layer 1: Networking in `infra/envs/{env}/main.tf`)
+  - VNet, subnets, NSGs, Log Analytics Workspace
+- Create and update shared modules (`infra/modules/`)
 - Review and approve infrastructure changes
 - Monitor costs and compliance
 

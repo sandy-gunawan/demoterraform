@@ -66,6 +66,36 @@ az account set --subscription "Your Subscription Name"
 
 ---
 
+## Understanding the Architecture First
+
+Before deploying, understand the **3 logical layers** in this framework:
+
+### Layer 0: Global Standards
+**Location:** `infra/global/`  
+**What:** Company-wide naming conventions, tags, provider configuration  
+**Deploy once:** Yes, shared across all environments
+
+### Layer 1: Landing Zone (Shared Infrastructure)
+**Location:** Part of `infra/envs/dev/main.tf` (networking section)  
+**What:** Shared networking foundation:
+- Virtual Network (VNet)
+- Subnets (aks-subnet, app-subnet, data-subnet)
+- Network Security Groups (NSGs)
+- Log Analytics Workspace
+
+**Deploy once per environment:** Yes, then reuse for all applications
+
+### Layer 2: Workloads (Your Applications)
+**Location:** Part of `infra/envs/dev/main.tf` (workload section)  
+**What:** Application infrastructure:
+- AKS clusters, App Services (compute)
+- Cosmos DB, Redis (data)
+- Key Vault (secrets)
+
+**Deploy as needed:** Enable/disable via feature toggles in `dev.tfvars`
+
+---
+
 ## Step 1: Create Terraform Backend (State Storage)
 
 Terraform needs a place to store its "state" - a record of what it has created.
