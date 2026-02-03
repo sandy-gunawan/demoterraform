@@ -11,6 +11,7 @@ Welcome! This guide will help you find the right documentation based on what you
 | 1️⃣ | [How Everything Connects](HOW-EVERYTHING-CONNECTS.md) | The big picture - how all pieces work together |
 | 2️⃣ | [Why These Choices](WHY-THESE-CHOICES.md) | Why we built it this way |
 | 3️⃣ | [Getting Started](GETTING-STARTED.md) | Step-by-step deployment guide |
+| 4️⃣ | [Deployment Workflow](DEPLOYMENT-WORKFLOW.md) | How to add services without re-deploying everything |
 
 ---
 
@@ -127,6 +128,9 @@ infra/modules/
 
 ### "I need to deploy something. How?"
 → Follow [Getting Started](GETTING-STARTED.md) for step-by-step instructions.
+
+### "I deployed AKS last week. Now I want to add Cosmos DB. Do I redeploy everything?"
+→ No! Read [Deployment Workflow](DEPLOYMENT-WORKFLOW.md) - Terraform only creates new resources.
 
 ### "Why did we choose AKS over Container Apps?"
 → See [Why These Choices](WHY-THESE-CHOICES.md#5-aks-vs-container-apps).
