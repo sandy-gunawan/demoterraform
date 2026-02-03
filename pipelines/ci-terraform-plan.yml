@@ -1,0 +1,265 @@
+# CI Pipeline - Terraform Plan
+# Runs on Pull Request to validate and plan infrastructure changes
+# No changes are applied - only validation and planning
+
+trigger: none  # Only run on PR
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - 'infra/**'
+      - 'pipelines/**'
+
+variables:
+  - name: terraformVersion
+    value: '1.5.7'
+  - name: workingDirectory
+    value: '$(System.DefaultWorkingDirectory)/infra/envs/dev'
+  - name: serviceConnection
+    value: 'sc-azure-oidc-or-mi'  # Azure service connection name
+  - name: azureSubscription
+    value: ''  # Set in pipeline variables
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+  - stage: Validate
+    displayName: 'Terraform Validation'
+    jobs:
+      - job: TerraformFormat
+        displayName: 'Check Terraform Format'
+        steps:
+          - checkout: self
+          
+          - task: TerraformInstaller@0
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: $(terraformVersion)
+          
+          - task: PowerShell@2
+            displayName: 'Check Terraform Format'
+            inputs:
+              targetType: 'inline'
+              script: |
+                cd $(workingDirectory)
+                terraform fmt -check -recursive
+                if ($LASTEXITCODE -ne 0) {
+                  Write-Host "##vso[task.logissue type=error]Terraform files are not formatted correctly. Run 'terraform fmt -recursive' locally."
+                  exit 1
+                }
+                Write-Host "✓ All Terraform files are properly formatted"
+
+      - job: TerraformValidate
+        displayName: 'Validate Terraform Configuration'
+        dependsOn: TerraformFormat
+        steps:
+          - checkout: self
+          
+          - task: TerraformInstaller@0
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: $(terraformVersion)
+          
+          - task: AzureCLI@2
+            displayName: 'Terraform Init'
+            inputs:
+              azureSubscription: $(serviceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                cd $(workingDirectory)
+                
+                # Initialize Terraform
+                terraform init \
+                  -backend=false \
+                  -input=false
+                
+                echo "✓ Terraform initialized successfully"
+          
+          - task: AzureCLI@2
+            displayName: 'Terraform Validate'
+            inputs:
+              azureSubscription: $(serviceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                cd $(workingDirectory)
+                
+                # Validate configuration
+                terraform validate
+                
+                echo "✓ Terraform configuration is valid"
+
+  - stage: Plan
+    displayName: 'Terraform Plan'
+    dependsOn: Validate
+    jobs:
+      - job: TerraformPlan
+        displayName: 'Generate Terraform Plan'
+        steps:
+          - checkout: self
+          
+          - task: TerraformInstaller@0
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: $(terraformVersion)
+          
+          - task: AzureCLI@2
+            displayName: 'Terraform Init with Backend'
+            inputs:
+              azureSubscription: $(serviceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              addSpnToEnvironment: true
+              inlineScript: |
+                cd $(workingDirectory)
+                
+                # Set OIDC environment variables for Terraform
+                export ARM_CLIENT_ID=$servicePrincipalId
+                export ARM_TENANT_ID=$tenantId
+                export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+                export ARM_USE_OIDC=true
+                
+                # Initialize with backend
+                terraform init \
+                  -input=false \
+                  -upgrade=false
+                
+                echo "✓ Terraform backend initialized"
+          
+          - task: AzureCLI@2
+            displayName: 'Terraform Plan'
+            inputs:
+              azureSubscription: $(serviceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              addSpnToEnvironment: true
+              inlineScript: |
+                cd $(workingDirectory)
+                
+                # Set OIDC environment variables
+                export ARM_CLIENT_ID=$servicePrincipalId
+                export ARM_TENANT_ID=$tenantId
+                export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+                export ARM_USE_OIDC=true
+                
+                # Generate plan
+                terraform plan \
+                  -var-file="dev.tfvars" \
+                  -out=tfplan \
+                  -input=false \
+                  -detailed-exitcode || EXIT_CODE=$?
+                
+                # Handle exit codes
+                # 0 = No changes, 1 = Error, 2 = Changes present
+                if [ "$EXIT_CODE" -eq 0 ]; then
+                  echo "✓ No infrastructure changes detected"
+                elif [ "$EXIT_CODE" -eq 2 ]; then
+                  echo "⚠ Infrastructure changes detected - review plan carefully"
+                elif [ "$EXIT_CODE" -eq 1 ]; then
+                  echo "##vso[task.logissue type=error]Terraform plan failed"
+                  exit 1
+                fi
+                
+                # Show plan in human-readable format
+                echo ""
+                echo "==================================="
+                echo "Terraform Plan Summary"
+                echo "==================================="
+                terraform show tfplan
+          
+          - task: PublishPipelineArtifact@1
+            displayName: 'Publish Terraform Plan'
+            condition: succeeded()
+            inputs:
+              targetPath: '$(workingDirectory)/tfplan'
+              artifact: 'terraform-plan-dev'
+              publishLocation: 'pipeline'
+          
+          - task: PowerShell@2
+            displayName: 'Generate Plan Comment for PR'
+            condition: succeeded()
+            inputs:
+              targetType: 'inline'
+              script: |
+                cd $(workingDirectory)
+                
+                # Generate markdown summary
+                $planSummary = terraform show -no-color tfplan
+                
+                # Create PR comment content
+                $comment = @"
+                ## 📋 Terraform Plan Summary
+                
+                **Environment**: Development
+                **Triggered By**: $(Build.RequestedFor)
+                **Build**: [$(Build.BuildNumber)]($(System.TeamFoundationCollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId))
+                
+                ### Plan Output
+                ``````
+                $planSummary
+                ``````
+                
+                ### Next Steps
+                - Review the plan carefully
+                - Ensure all changes are expected
+                - Merge PR if approved
+                - Apply pipeline will require manual approval before deployment
+                "@
+                
+                Write-Host "Plan summary prepared for PR comment"
+                Write-Output $comment | Out-File -FilePath "$(Build.ArtifactStagingDirectory)/plan-summary.md"
+          
+          - task: PublishPipelineArtifact@1
+            displayName: 'Publish Plan Summary'
+            condition: succeeded()
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)/plan-summary.md'
+              artifact: 'plan-summary'
+              publishLocation: 'pipeline'
+
+  - stage: SecurityScan
+    displayName: 'Security Scanning'
+    dependsOn: Plan
+    condition: succeeded()
+    jobs:
+      - job: TFSec
+        displayName: 'Run tfsec Security Scan'
+        steps:
+          - checkout: self
+          
+          - task: PowerShell@2
+            displayName: 'Install tfsec'
+            inputs:
+              targetType: 'inline'
+              script: |
+                # Install tfsec
+                if ($IsWindows) {
+                  choco install tfsec -y
+                } elseif ($IsLinux) {
+                  curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+                } else {
+                  brew install tfsec
+                }
+          
+          - task: PowerShell@2
+            displayName: 'Run tfsec'
+            inputs:
+              targetType: 'inline'
+              script: |
+                cd $(workingDirectory)
+                tfsec . --format json --out tfsec-results.json
+                tfsec . --format default
+            continueOnError: true
+          
+          - task: PublishPipelineArtifact@1
+            displayName: 'Publish Security Scan Results'
+            inputs:
+              targetPath: '$(workingDirectory)/tfsec-results.json'
+              artifact: 'security-scan-results'
+              publishLocation: 'pipeline'

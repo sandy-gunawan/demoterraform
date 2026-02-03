@@ -1,0 +1,63 @@
+# Terraform Template - Common Steps
+# Reusable template for Terraform operations
+
+parameters:
+  - name: terraformVersion
+    type: string
+    default: '1.5.7'
+  - name: workingDirectory
+    type: string
+  - name: serviceConnection
+    type: string
+  - name: command
+    type: string
+    values:
+      - init
+      - validate
+      - plan
+      - apply
+      - destroy
+  - name: varFile
+    type: string
+    default: ''
+  - name: additionalArgs
+    type: string
+    default: ''
+
+steps:
+  - task: TerraformInstaller@0
+    displayName: 'Install Terraform ${{ parameters.terraformVersion }}'
+    inputs:
+      terraformVersion: ${{ parameters.terraformVersion }}
+
+  - task: AzureCLI@2
+    displayName: 'Terraform ${{ parameters.command }}'
+    inputs:
+      azureSubscription: ${{ parameters.serviceConnection }}
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      addSpnToEnvironment: true
+      workingDirectory: ${{ parameters.workingDirectory }}
+      inlineScript: |
+        # Set OIDC environment variables for Terraform
+        export ARM_CLIENT_ID=$servicePrincipalId
+        export ARM_TENANT_ID=$tenantId
+        export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+        export ARM_USE_OIDC=true
+        
+        # Build command
+        CMD="terraform ${{ parameters.command }}"
+        
+        # Add var-file if specified
+        if [ -n "${{ parameters.varFile }}" ]; then
+          CMD="$CMD -var-file=${{ parameters.varFile }}"
+        fi
+        
+        # Add additional arguments
+        if [ -n "${{ parameters.additionalArgs }}" ]; then
+          CMD="$CMD ${{ parameters.additionalArgs }}"
+        fi
+        
+        # Execute command
+        echo "Executing: $CMD"
+        eval $CMD

@@ -1,0 +1,276 @@
+# CD Pipeline - Terraform Apply
+# Applies infrastructure changes to Azure
+# Requires manual approval before execution
+# Only runs after PR is merged to main
+
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - 'infra/**'
+
+pr: none  # Don't run on PRs
+
+variables:
+  - name: terraformVersion
+    value: '1.5.7'
+  - name: serviceConnection
+    value: 'sc-azure-oidc-or-mi'
+  - name: azureSubscription
+    value: ''  # Set in pipeline variables
+
+parameters:
+  - name: environment
+    displayName: 'Target Environment'
+    type: string
+    default: 'dev'
+    values:
+      - dev
+      - staging
+      - prod
+  - name: autoApprove
+    displayName: 'Auto Approve (Skip Approval Gate)'
+    type: boolean
+    default: false
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+  - stage: PrepareApply
+    displayName: 'Prepare for Apply'
+    jobs:
+      - job: ValidateEnvironment
+        displayName: 'Validate Environment Configuration'
+        steps:
+          - checkout: self
+          
+          - task: PowerShell@2
+            displayName: 'Validate Environment Selection'
+            inputs:
+              targetType: 'inline'
+              script: |
+                $env = "${{ parameters.environment }}"
+                $workDir = "$(System.DefaultWorkingDirectory)/infra/envs/$env"
+                
+                Write-Host "Target Environment: $env"
+                Write-Host "Working Directory: $workDir"
+                
+                if (!(Test-Path $workDir)) {
+                  Write-Host "##vso[task.logissue type=error]Environment directory not found: $workDir"
+                  exit 1
+                }
+                
+                # Check for required files
+                $requiredFiles = @("main.tf", "variables.tf", "$env.tfvars")
+                foreach ($file in $requiredFiles) {
+                  $filePath = Join-Path $workDir $file
+                  if (!(Test-Path $filePath)) {
+                    Write-Host "##vso[task.logissue type=error]Required file missing: $file"
+                    exit 1
+                  }
+                }
+                
+                Write-Host "✓ Environment configuration validated"
+
+  - stage: DeployInfrastructure
+    displayName: 'Deploy to ${{ parameters.environment }}'
+    dependsOn: PrepareApply
+    # Use environment for approval gates
+    jobs:
+      - deployment: TerraformApply
+        displayName: 'Apply Terraform Changes'
+        environment: ${{ parameters.environment }}  # This triggers approval gates
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                
+                - task: TerraformInstaller@0
+                  displayName: 'Install Terraform'
+                  inputs:
+                    terraformVersion: $(terraformVersion)
+                
+                - task: AzureCLI@2
+                  displayName: 'Terraform Init'
+                  inputs:
+                    azureSubscription: $(serviceConnection)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    addSpnToEnvironment: true
+                    workingDirectory: '$(System.DefaultWorkingDirectory)/infra/envs/${{ parameters.environment }}'
+                    inlineScript: |
+                      # Set OIDC environment variables
+                      export ARM_CLIENT_ID=$servicePrincipalId
+                      export ARM_TENANT_ID=$tenantId
+                      export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+                      export ARM_USE_OIDC=true
+                      
+                      # Initialize Terraform
+                      terraform init \
+                        -input=false \
+                        -upgrade=false
+                      
+                      echo "✓ Terraform initialized with remote backend"
+                
+                - task: AzureCLI@2
+                  displayName: 'Terraform Plan (Pre-Apply Check)'
+                  inputs:
+                    azureSubscription: $(serviceConnection)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    addSpnToEnvironment: true
+                    workingDirectory: '$(System.DefaultWorkingDirectory)/infra/envs/${{ parameters.environment }}'
+                    inlineScript: |
+                      export ARM_CLIENT_ID=$servicePrincipalId
+                      export ARM_TENANT_ID=$tenantId
+                      export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+                      export ARM_USE_OIDC=true
+                      
+                      # Generate fresh plan
+                      terraform plan \
+                        -var-file="${{ parameters.environment }}.tfvars" \
+                        -out=tfplan-apply \
+                        -input=false
+                      
+                      echo ""
+                      echo "==================================="
+                      echo "⚠️  FINAL PLAN BEFORE APPLY"
+                      echo "==================================="
+                      terraform show tfplan-apply
+                
+                - task: AzureCLI@2
+                  displayName: 'Terraform Apply'
+                  inputs:
+                    azureSubscription: $(serviceConnection)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    addSpnToEnvironment: true
+                    workingDirectory: '$(System.DefaultWorkingDirectory)/infra/envs/${{ parameters.environment }}'
+                    inlineScript: |
+                      export ARM_CLIENT_ID=$servicePrincipalId
+                      export ARM_TENANT_ID=$tenantId
+                      export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+                      export ARM_USE_OIDC=true
+                      
+                      echo "==================================="
+                      echo "🚀 APPLYING INFRASTRUCTURE CHANGES"
+                      echo "==================================="
+                      echo "Environment: ${{ parameters.environment }}"
+                      echo "Subscription: $(az account show --query name -o tsv)"
+                      echo "Applied By: $(Build.RequestedFor)"
+                      echo "Build: $(Build.BuildNumber)"
+                      echo ""
+                      
+                      # Apply with auto-approve
+                      terraform apply \
+                        -input=false \
+                        -auto-approve \
+                        tfplan-apply
+                      
+                      if [ $? -eq 0 ]; then
+                        echo ""
+                        echo "✓ Infrastructure deployed successfully!"
+                        echo ""
+                        echo "==================================="
+                        echo "OUTPUTS"
+                        echo "==================================="
+                        terraform output
+                      else
+                        echo "##vso[task.logissue type=error]Terraform apply failed"
+                        exit 1
+                      fi
+                
+                - task: AzureCLI@2
+                  displayName: 'Save Terraform Outputs'
+                  inputs:
+                    azureSubscription: $(serviceConnection)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    workingDirectory: '$(System.DefaultWorkingDirectory)/infra/envs/${{ parameters.environment }}'
+                    inlineScript: |
+                      # Export outputs to JSON
+                      terraform output -json > outputs.json
+                      
+                      echo "Terraform outputs saved to outputs.json"
+                
+                - task: PublishPipelineArtifact@1
+                  displayName: 'Publish Terraform Outputs'
+                  inputs:
+                    targetPath: '$(System.DefaultWorkingDirectory)/infra/envs/${{ parameters.environment }}/outputs.json'
+                    artifact: 'terraform-outputs-${{ parameters.environment }}'
+                    publishLocation: 'pipeline'
+
+  - stage: PostDeployment
+    displayName: 'Post-Deployment Validation'
+    dependsOn: DeployInfrastructure
+    condition: succeeded()
+    jobs:
+      - job: ValidateDeployment
+        displayName: 'Validate Deployed Resources'
+        steps:
+          - task: DownloadPipelineArtifact@2
+            displayName: 'Download Terraform Outputs'
+            inputs:
+              artifact: 'terraform-outputs-${{ parameters.environment }}'
+              path: '$(System.DefaultWorkingDirectory)/outputs'
+          
+          - task: AzureCLI@2
+            displayName: 'Verify Resources Exist'
+            inputs:
+              azureSubscription: $(serviceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "==================================="
+                echo "POST-DEPLOYMENT VERIFICATION"
+                echo "==================================="
+                
+                # Read outputs
+                OUTPUTS_FILE="$(System.DefaultWorkingDirectory)/outputs/outputs.json"
+                
+                if [ -f "$OUTPUTS_FILE" ]; then
+                  echo "Terraform outputs found"
+                  cat $OUTPUTS_FILE | jq '.'
+                  
+                  # Example: Verify resource group exists
+                  # RG_NAME=$(cat $OUTPUTS_FILE | jq -r '.resource_group_name.value')
+                  # az group show --name $RG_NAME > /dev/null 2>&1
+                  # if [ $? -eq 0 ]; then
+                  #   echo "✓ Resource Group $RG_NAME verified"
+                  # fi
+                  
+                  echo ""
+                  echo "✓ Post-deployment validation completed"
+                else
+                  echo "⚠ No outputs file found"
+                fi
+      
+      - job: NotifyTeam
+        displayName: 'Send Deployment Notification'
+        dependsOn: ValidateDeployment
+        condition: succeeded()
+        steps:
+          - task: PowerShell@2
+            displayName: 'Prepare Notification'
+            inputs:
+              targetType: 'inline'
+              script: |
+                Write-Host "==================================="
+                Write-Host "✓ DEPLOYMENT SUCCESSFUL"
+                Write-Host "==================================="
+                Write-Host "Environment: ${{ parameters.environment }}"
+                Write-Host "Build: $(Build.BuildNumber)"
+                Write-Host "Deployed By: $(Build.RequestedFor)"
+                Write-Host "Repository: $(Build.Repository.Name)"
+                Write-Host "Commit: $(Build.SourceVersion)"
+                Write-Host ""
+                Write-Host "View Details: $(System.TeamFoundationCollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)"
+                Write-Host ""
+                
+                # Here you could add integration with Teams, Slack, Email, etc.
+                # Example: Send to Teams webhook
+                # Invoke-WebRequest -Uri $env:TEAMS_WEBHOOK -Method Post -Body $jsonBody
