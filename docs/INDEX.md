@@ -11,7 +11,9 @@ Welcome! This guide will help you find the right documentation based on what you
 | 1️⃣ | [How Everything Connects](HOW-EVERYTHING-CONNECTS.md) | The big picture - how all pieces work together |
 | 2️⃣ | [Why These Choices](WHY-THESE-CHOICES.md) | Why we built it this way |
 | 3️⃣ | [Getting Started](GETTING-STARTED.md) | Step-by-step deployment guide |
-| 4️⃣ | [Deployment Workflow](DEPLOYMENT-WORKFLOW.md) | How to add services without re-deploying everything |
+| 4️⃣ | [Step-by-Step Example](STEP-BY-STEP-EXAMPLE.md) | **NEW!** Complete walkthrough from scratch |
+| 5️⃣ | [Deployment Workflow](DEPLOYMENT-WORKFLOW.md) | How to add services without re-deploying everything |
+| 6️⃣ | [Team Collaboration](TEAM-COLLABORATION.md) | **NEW!** How teams work together |
 
 ---
 
@@ -96,7 +98,10 @@ docs/
 ├── 🌟 Beginner Documentation
 │   ├── HOW-EVERYTHING-CONNECTS.md     # Big picture overview
 │   ├── WHY-THESE-CHOICES.md           # Decision rationale
-│   └── GETTING-STARTED.md             # Step-by-step deployment
+│   ├── GETTING-STARTED.md             # Step-by-step deployment
+│   ├── STEP-BY-STEP-EXAMPLE.md        # Complete walkthrough (NEW!)
+│   ├── DEPLOYMENT-WORKFLOW.md         # Incremental deployment guide
+│   └── TEAM-COLLABORATION.md          # Team workflows (NEW!)
 │
 ├── 🛠️ Setup Guides
 │   └── AZURE-DEVOPS-SETUP.md          # CI/CD pipeline setup
@@ -108,6 +113,12 @@ docs/
 │
 └── 💼 Executive Documentation
     └── executive/                      # Business documentation
+
+examples/
+├── aks-application/                    # AKS deployment example
+└── pattern-2-delegated/                # Team delegation examples (NEW!)
+    ├── dev-app-ecommerce/              # E-commerce app example
+    └── dev-app-crm/                    # CRM app example
 
 infra/modules/
 ├── aks/HOW-IT-WORKS.md                 # Kubernetes explained
@@ -124,13 +135,19 @@ infra/modules/
 ## ❓ Common Questions
 
 ### "I'm completely new. Where do I start?"
-→ Read [How Everything Connects](HOW-EVERYTHING-CONNECTS.md) first, then [Getting Started](GETTING-STARTED.md).
+→ Read [How Everything Connects](HOW-EVERYTHING-CONNECTS.md) first, then [Step-by-Step Example](STEP-BY-STEP-EXAMPLE.md).
 
 ### "I need to deploy something. How?"
-→ Follow [Getting Started](GETTING-STARTED.md) for step-by-step instructions.
+→ Follow [Step-by-Step Example](STEP-BY-STEP-EXAMPLE.md) for complete walkthrough with a real use case.
 
 ### "I deployed AKS last week. Now I want to add Cosmos DB. Do I redeploy everything?"
 → No! Read [Deployment Workflow](DEPLOYMENT-WORKFLOW.md) - Terraform only creates new resources.
+
+### "How do teams work together on this framework?"
+→ See [Team Collaboration](TEAM-COLLABORATION.md) for centralized vs delegated patterns.
+
+### "What parameters do I need to fill and where do I get them?"
+→ Follow [Step-by-Step Example](STEP-BY-STEP-EXAMPLE.md) - shows exactly what to fill and where to get each value.
 
 ### "Why did we choose AKS over Container Apps?"
 → See [Why These Choices](WHY-THESE-CHOICES.md#5-aks-vs-container-apps).

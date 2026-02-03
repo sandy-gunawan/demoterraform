@@ -688,3 +688,139 @@ You deploy your foundation once, then add services over time by:
 3. Only new resources are created
 
 No need to redeploy everything each time! 🎉
+
+---
+
+## 🤝 Team Collaboration Models
+
+How your teams work with this Terraform framework depends on your organizational structure.
+
+### Pattern 1: Centralized (Platform Team Manages)
+
+**Who:** Platform/SRE/DevOps team manages ALL Terraform  
+**Best for:** Organizations starting their cloud journey, or strict governance requirements
+
+```
+terraform-framework/
+├── environments/
+│   ├── dev/
+│   │   ├── 1-global/          ← Platform team manages
+│   │   ├── 2-landing-zone/    ← Platform team manages
+│   │   └── 3-workloads/       ← Platform team manages
+│   └── prod/
+│       ├── 1-global/          ← Platform team manages
+│       ├── 2-landing-zone/    ← Platform team manages
+│       └── 3-workloads/       ← Platform team manages
+```
+
+**How it works:**
+- App teams request infrastructure via ticket/form
+- Platform team enables toggles and deploys
+- App teams deploy applications to provisioned infrastructure
+
+**Pros:**
+- ✅ Consistent standards enforced
+- ✅ Easier compliance auditing
+- ✅ Centralized cost control
+
+**Cons:**
+- ❌ Platform team can become bottleneck
+- ❌ App teams lack autonomy
+
+---
+
+### Pattern 2: Delegated (App Teams Manage Their Own)
+
+**Who:** Each app team manages their own workload Terraform  
+**Best for:** Mature organizations with experienced teams
+
+```
+terraform-framework/
+├── environments/
+│   ├── dev-shared/
+│   │   ├── 1-global/          ← Platform team manages
+│   │   └── 2-landing-zone/    ← Platform team manages
+│   ├── dev-app-ecommerce/
+│   │   └── 3-workloads/       ← E-commerce team manages
+│   ├── dev-app-crm/
+│   │   └── 3-workloads/       ← CRM team manages
+│   └── prod-shared/
+│       ├── 1-global/          ← Platform team manages
+│       └── 2-landing-zone/    ← Platform team manages
+```
+
+**How it works:**
+- Platform team maintains global + landing zone (foundation)
+- Each app team has their own folder and state file
+- App teams self-service their infrastructure needs
+- All teams use SAME module structure from `_shared/`
+
+**Pros:**
+- ✅ App teams have autonomy
+- ✅ Faster iteration cycles
+- ✅ Clear ownership boundaries
+
+**Cons:**
+- ❌ Requires training investment
+- ❌ Risk of inconsistent configurations
+- ❌ More complex CI/CD setup
+
+---
+
+### Pattern 3: Hybrid (Gradual Delegation)
+
+**Who:** Start centralized, gradually delegate  
+**Best for:** Most organizations (recommended starting point)
+
+**Phase 1 (Month 1-3):**
+```
+Platform team manages everything
+App teams learn by observing
+```
+
+**Phase 2 (Month 4-6):**
+```
+Platform team: Global + Landing Zone + Databases
+App teams: Compute resources (AKS namespaces, App Service plans)
+```
+
+**Phase 3 (Month 7+):**
+```
+Platform team: Global + Landing Zone only
+App teams: Everything else (workloads)
+```
+
+**Pros:**
+- ✅ Gradual learning curve
+- ✅ De-risk the transition
+- ✅ Build team capability over time
+
+**Cons:**
+- ❌ Longer transition period
+- ❌ Requires change management
+
+---
+
+### 📊 Comparison Table
+
+| Aspect | Centralized | Delegated | Hybrid |
+|--------|-------------|-----------|--------|
+| **App Team Autonomy** | Low | High | Medium → High |
+| **Deployment Speed** | Slower (bottleneck) | Faster | Medium |
+| **Consistency** | High | Medium | Medium → High |
+| **Training Required** | Low | High | Medium |
+| **Best For** | Small teams, strict compliance | Large orgs, mature teams | Growing organizations |
+| **Platform Team Size** | 2-3 people | 1-2 people | 2-3 → 1-2 people |
+
+---
+
+### 🎯 Recommendation
+
+**Start with Pattern 1 (Centralized), evolve to Pattern 2 (Delegated):**
+
+1. **Weeks 1-4:** Platform team builds foundation (Global + Landing Zone)
+2. **Weeks 5-12:** Platform team deploys first 2-3 apps (learn the patterns)
+3. **Weeks 13-24:** Create app team guides, start delegation (Pattern 3)
+4. **Month 7+:** Full delegation, platform team maintains foundation only
+
+**All teams use the SAME framework structure** — just organized into different folders!
