@@ -50,6 +50,9 @@ This framework uses **feature toggles** to keep dev simple and cheap while prod 
 | Component | What It Is | Documentation |
 |-----------|------------|---------------|
 | **Cosmos DB** | Globally distributed NoSQL database | [How It Works](../infra/modules/cosmosdb/HOW-IT-WORKS.md) |
+| **SQL Database** | Managed relational database (Azure SQL) | [How It Works](../infra/modules/sql-database/HOW-IT-WORKS.md) |
+| **PostgreSQL** | Managed open-source relational database | [How It Works](../infra/modules/postgresql/HOW-IT-WORKS.md) |
+| **Storage** | Blob, file, table, and queue storage | [How It Works](../infra/modules/storage/HOW-IT-WORKS.md) |
 | **Key Vault** | Secure secrets management | [How It Works](../infra/modules/security/HOW-IT-WORKS.md) |
 
 ### Foundation
@@ -116,6 +119,7 @@ docs/
 
 examples/
 ├── aks-application/                    # AKS deployment example
+├── enterprise-hub-spoke/               # Hub-spoke multi-network example
 └── pattern-2-delegated/                # Team delegation examples (NEW!)
     ├── dev-app-ecommerce/              # E-commerce app example
     └── dev-app-crm/                    # CRM app example
@@ -126,7 +130,10 @@ infra/modules/
 ├── cosmosdb/HOW-IT-WORKS.md            # NoSQL database
 ├── landing-zone/HOW-IT-WORKS.md        # Shared foundation
 ├── networking/HOW-IT-WORKS.md          # VNets and networking
+├── postgresql/HOW-IT-WORKS.md          # PostgreSQL database
 ├── security/HOW-IT-WORKS.md            # Key Vault and secrets
+├── sql-database/HOW-IT-WORKS.md        # Azure SQL Database
+├── storage/HOW-IT-WORKS.md             # Azure Storage Account
 └── webapp/HOW-IT-WORKS.md              # App Service
 ```
 

@@ -20,9 +20,10 @@ resource "azurerm_resource_group" "app" {
 module "networking" {
   source = "../../infra/modules/networking"
 
-  network_name  = "${var.project_name}-${var.app_name}-vnet"
-  location      = var.location
-  address_space = ["10.10.0.0/16"]
+  resource_group_name = azurerm_resource_group.app.name
+  network_name        = "${var.project_name}-${var.app_name}-vnet"
+  location            = var.location
+  address_space       = ["10.10.0.0/16"]
 
   subnets = {
     "aks-subnet" = {
@@ -98,26 +99,20 @@ resource "azurerm_log_analytics_workspace" "app" {
 module "aks" {
   source = "../../infra/modules/aks"
 
-  cluster_name       = "${var.project_name}-${var.app_name}-aks"
-  location           = var.location
-  dns_prefix         = "${var.project_name}-${var.app_name}"
-  kubernetes_version = var.kubernetes_version
+  resource_group_name = azurerm_resource_group.app.name
+  cluster_name        = "${var.project_name}-${var.app_name}-aks"
+  location            = var.location
+  dns_prefix          = "${var.project_name}-${var.app_name}"
+  kubernetes_version  = var.kubernetes_version
 
-  # System node pool configuration
-  system_node_count   = var.aks_system_node_count
-  system_node_vm_size = var.aks_system_node_size
+  # Node pool configuration
+  node_count          = var.aks_system_node_count
+  vm_size             = var.aks_system_node_size
   enable_auto_scaling = true
   min_node_count      = var.aks_system_min_nodes
   max_node_count      = var.aks_system_max_nodes
 
-  # User node pool for application workloads
-  create_user_node_pool = true
-  user_node_vm_size     = var.aks_user_node_size
-  user_node_count       = var.aks_user_node_count
-  user_min_node_count   = var.aks_user_min_nodes
-  user_max_node_count   = var.aks_user_max_nodes
-
-  subnet_id                  = module.networking.subnet_ids["aks-subnet"]
+  vnet_subnet_id             = module.networking.subnet_ids["aks-subnet"]
   log_analytics_workspace_id = azurerm_log_analytics_workspace.app.id
   tenant_id                  = var.tenant_id
   admin_group_object_ids     = var.admin_group_object_ids
@@ -130,8 +125,9 @@ module "aks" {
 module "cosmosdb" {
   source = "../../infra/modules/cosmosdb"
 
-  account_name      = "${var.project_name}${var.app_name}cosmos"
-  location          = var.location
+  resource_group_name = azurerm_resource_group.app.name
+  account_name        = "${var.project_name}${var.app_name}cosmos"
+  location            = var.location
   consistency_level = var.cosmos_consistency_level
 
   # Multi-region configuration

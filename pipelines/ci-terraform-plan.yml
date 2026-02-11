@@ -1,6 +1,7 @@
 # CI Pipeline - Terraform Plan
 # Runs on Pull Request to validate and plan infrastructure changes
 # No changes are applied - only validation and planning
+# Includes: format check, validation, security scanning, cost estimation, and plan
 
 trigger: none  # Only run on PR
 
@@ -14,11 +15,23 @@ pr:
       - 'infra/**'
       - 'pipelines/**'
 
+parameters:
+  - name: environment
+    displayName: 'Target Environment'
+    type: string
+    default: 'dev'
+    values:
+      - dev
+      - staging
+      - prod
+
 variables:
   - name: terraformVersion
     value: '1.5.7'
   - name: workingDirectory
-    value: '$(System.DefaultWorkingDirectory)/infra/envs/dev'
+    value: '$(System.DefaultWorkingDirectory)/infra/envs/${{ parameters.environment }}'
+  - name: varFile
+    value: '${{ parameters.environment }}.tfvars'
   - name: serviceConnection
     value: 'sc-azure-oidc-or-mi'  # Azure service connection name
   - name: azureSubscription
@@ -28,8 +41,54 @@ pool:
   vmImage: 'ubuntu-latest'
 
 stages:
+  # ─── Stage 1: Secret scanning ─────────────────────────────
+  - stage: SecretScan
+    displayName: 'Secret Scanning (GitLeaks)'
+    jobs:
+      - job: GitLeaks
+        displayName: 'Scan for Leaked Secrets'
+        steps:
+          - checkout: self
+            fetchDepth: 0  # Full history for comprehensive scanning
+
+          - task: Bash@3
+            displayName: 'Install & Run GitLeaks'
+            inputs:
+              targetType: 'inline'
+              script: |
+                echo "Installing GitLeaks..."
+                GITLEAKS_VERSION="8.18.1"
+                wget -q "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -O gitleaks.tar.gz
+                tar -xzf gitleaks.tar.gz gitleaks
+                chmod +x gitleaks
+
+                echo "Running GitLeaks scan..."
+                ./gitleaks detect \
+                  --source . \
+                  --report-format json \
+                  --report-path gitleaks-report.json \
+                  --verbose || SCAN_EXIT=$?
+
+                if [ "${SCAN_EXIT:-0}" -ne 0 ]; then
+                  echo "##vso[task.logissue type=error]GitLeaks detected secrets in the repository!"
+                  echo "Review the report artifact for details."
+                  exit 1
+                fi
+
+                echo "✓ No secrets detected"
+
+          - task: PublishPipelineArtifact@1
+            displayName: 'Publish GitLeaks Report'
+            condition: always()
+            inputs:
+              targetPath: 'gitleaks-report.json'
+              artifact: 'gitleaks-report'
+              publishLocation: 'pipeline'
+
+  # ─── Stage 2: Terraform format + validate ──────────────────
   - stage: Validate
     displayName: 'Terraform Validation'
+    dependsOn: SecretScan
     jobs:
       - job: TerraformFormat
         displayName: 'Check Terraform Format'
@@ -41,18 +100,17 @@ stages:
             inputs:
               terraformVersion: $(terraformVersion)
           
-          - task: PowerShell@2
+          - task: Bash@3
             displayName: 'Check Terraform Format'
             inputs:
               targetType: 'inline'
               script: |
-                cd $(workingDirectory)
-                terraform fmt -check -recursive
-                if ($LASTEXITCODE -ne 0) {
-                  Write-Host "##vso[task.logissue type=error]Terraform files are not formatted correctly. Run 'terraform fmt -recursive' locally."
+                terraform fmt -check -recursive infra/
+                if [ $? -ne 0 ]; then
+                  echo "##vso[task.logissue type=error]Terraform files are not formatted correctly. Run 'terraform fmt -recursive' locally."
                   exit 1
-                }
-                Write-Host "✓ All Terraform files are properly formatted"
+                fi
+                echo "✓ All Terraform files are properly formatted"
 
       - job: TerraformValidate
         displayName: 'Validate Terraform Configuration'
@@ -150,7 +208,7 @@ stages:
                 
                 # Generate plan
                 terraform plan \
-                  -var-file="dev.tfvars" \
+                  -var-file="$(varFile)" \
                   -out=tfplan \
                   -input=false \
                   -detailed-exitcode || EXIT_CODE=$?
@@ -178,7 +236,7 @@ stages:
             condition: succeeded()
             inputs:
               targetPath: '$(workingDirectory)/tfplan'
-              artifact: 'terraform-plan-dev'
+              artifact: 'terraform-plan-${{ parameters.environment }}'
               publishLocation: 'pipeline'
           
           - task: PowerShell@2
@@ -196,7 +254,7 @@ stages:
                 $comment = @"
                 ## 📋 Terraform Plan Summary
                 
-                **Environment**: Development
+                **Environment**: ${{ parameters.environment }}
                 **Triggered By**: $(Build.RequestedFor)
                 **Build**: [$(Build.BuildNumber)]($(System.TeamFoundationCollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId))
                 
@@ -224,42 +282,113 @@ stages:
               publishLocation: 'pipeline'
 
   - stage: SecurityScan
-    displayName: 'Security Scanning'
+    displayName: 'IaC Security Scanning (Checkov)'
     dependsOn: Plan
     condition: succeeded()
     jobs:
-      - job: TFSec
-        displayName: 'Run tfsec Security Scan'
+      - job: Checkov
+        displayName: 'Run Checkov Security Scan'
         steps:
           - checkout: self
           
-          - task: PowerShell@2
-            displayName: 'Install tfsec'
+          - task: UsePythonVersion@0
+            displayName: 'Use Python 3.x'
+            inputs:
+              versionSpec: '3.x'
+
+          - task: Bash@3
+            displayName: 'Install & Run Checkov'
             inputs:
               targetType: 'inline'
               script: |
-                # Install tfsec
-                if ($IsWindows) {
-                  choco install tfsec -y
-                } elseif ($IsLinux) {
-                  curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
-                } else {
-                  brew install tfsec
-                }
-          
-          - task: PowerShell@2
-            displayName: 'Run tfsec'
-            inputs:
-              targetType: 'inline'
-              script: |
-                cd $(workingDirectory)
-                tfsec . --format json --out tfsec-results.json
-                tfsec . --format default
+                pip install --quiet checkov
+
+                echo "Running Checkov against infra/ ..."
+                checkov \
+                  --directory infra/ \
+                  --config-file .checkov.yml \
+                  --output cli \
+                  --output junitxml \
+                  --output-file-path console,$(Build.ArtifactStagingDirectory)/checkov-results.xml \
+                  --soft-fail || true
+
+                echo ""
+                echo "✓ Checkov scan complete — review results above"
             continueOnError: true
-          
-          - task: PublishPipelineArtifact@1
-            displayName: 'Publish Security Scan Results'
+
+          - task: PublishTestResults@2
+            displayName: 'Publish Checkov Results'
+            condition: always()
             inputs:
-              targetPath: '$(workingDirectory)/tfsec-results.json'
-              artifact: 'security-scan-results'
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '$(Build.ArtifactStagingDirectory)/checkov-results.xml'
+              testRunTitle: 'Checkov IaC Security Scan'
+
+  # ─── Stage 5: Infracost cost estimation ────────────────────
+  - stage: CostEstimation
+    displayName: 'Cost Estimation (Infracost)'
+    dependsOn: Plan
+    condition: succeeded()
+    jobs:
+      - job: Infracost
+        displayName: 'Estimate Infrastructure Cost'
+        steps:
+          - checkout: self
+
+          - task: TerraformInstaller@0
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: $(terraformVersion)
+
+          - task: AzureCLI@2
+            displayName: 'Terraform Init (for Infracost)'
+            inputs:
+              azureSubscription: $(serviceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              addSpnToEnvironment: true
+              inlineScript: |
+                cd $(workingDirectory)
+                export ARM_CLIENT_ID=$servicePrincipalId
+                export ARM_TENANT_ID=$tenantId
+                export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+                export ARM_USE_OIDC=true
+                terraform init -backend=false -input=false
+
+          - task: Bash@3
+            displayName: 'Install & Run Infracost'
+            env:
+              INFRACOST_API_KEY: $(INFRACOST_API_KEY)  # Set in pipeline variables or Key Vault
+            inputs:
+              targetType: 'inline'
+              script: |
+                if [ -z "$INFRACOST_API_KEY" ]; then
+                  echo "##vso[task.logissue type=warning]INFRACOST_API_KEY not set — skipping cost estimation"
+                  echo "Get a free key at https://www.infracost.io/docs/"
+                  exit 0
+                fi
+
+                # Install Infracost
+                curl -fsSL https://raw.githubusercontent.com/infracost/infracost/master/scripts/install.sh | sh
+
+                # Generate cost breakdown
+                infracost breakdown \
+                  --path $(workingDirectory) \
+                  --format json \
+                  --out-file $(Build.ArtifactStagingDirectory)/infracost.json
+
+                # Generate human-readable output
+                infracost output \
+                  --path $(Build.ArtifactStagingDirectory)/infracost.json \
+                  --format table
+
+                echo ""
+                echo "✓ Cost estimation complete"
+
+          - task: PublishPipelineArtifact@1
+            displayName: 'Publish Cost Report'
+            condition: succeededOrFailed()
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)/infracost.json'
+              artifact: 'infracost-report-${{ parameters.environment }}'
               publishLocation: 'pipeline'

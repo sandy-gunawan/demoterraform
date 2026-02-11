@@ -52,8 +52,8 @@ graph TB
         direction LR
         L3A[Cosmos DB<br/>NoSQL Database<br/>Private VNet access]
         L3B[Key Vault<br/>Secrets Management<br/>Certificates]
-        L3C[Storage Account<br/>Blob/Files/Tables<br/>CDN integration]
-        L3D[Redis Cache<br/>In-Memory Cache<br/>Session storage]
+        L3C[Storage Account<br/>Blob/Files/Tables]
+        L3D[SQL / PostgreSQL<br/>Relational Database<br/>Managed HA]
     end
     
     Layer3 --> Complete([Application Running<br/>Fully Deployed])
@@ -83,8 +83,9 @@ graph TB
 | **2** | `container_app` | `infra/modules/container-app/` | `global_standards.common_tags` | `app_url`<br/>`fqdn`<br/>`app_id` | External users, CI/CD |
 | **3** | `cosmosdb` | `infra/modules/cosmosdb/` | `networking.subnet_ids["app-subnet"]`<br/>`log_analytics_workspace.id`<br/>`global_standards.common_tags` | `cosmosdb_endpoint`<br/>`primary_key` (sensitive)<br/>`connection_strings` (sensitive) | Layer 2 apps (env vars) |
 | **3** | `key_vault` | `infra/modules/security/` | `networking.subnet_ids["app-subnet"]`<br/>`global_standards.common_tags` | `vault_uri`<br/>`vault_id` | Layer 2 apps (secrets) |
-| **3** | `storage_account` | Environment file | `networking.subnet_ids["app-subnet"]`<br/>`global_standards.common_tags` | `primary_connection_string`<br/>`primary_blob_endpoint` | Layer 2 apps (blob storage) |
-| **3** | `redis_cache` | `infra/modules/redis/` | `networking.subnet_ids["app-subnet"]`<br/>`global_standards.common_tags` | `hostname`<br/>`ssl_port`<br/>`primary_access_key` | Layer 2 apps (caching) |
+| **3** | `storage_account` | `infra/modules/storage/` | `networking.subnet_ids["app-subnet"]`<br/>`global_standards.common_tags` | `primary_connection_string`<br/>`primary_blob_endpoint` | Layer 2 apps (blob storage) |
+| **3** | `sql_database` | `infra/modules/sql-database/` | `networking.subnet_ids["data-subnet"]`<br/>`global_standards.common_tags` | `server_fqdn`<br/>`connection_string` (sensitive) | Layer 2 apps (relational data) |
+| **3** | `postgresql` | `infra/modules/postgresql/` | `networking.subnet_ids["data-subnet"]`<br/>`global_standards.common_tags` | `server_fqdn`<br/>`connection_string` (sensitive) | Layer 2 apps (relational data) |
 
 ---
 
@@ -117,7 +118,8 @@ graph LR
         Cosmos[cosmosdb]
         KV[key_vault]
         Storage[storage]
-        Redis[redis]
+        SQL[sql_database]
+        PG[postgresql]
     end
     
     Main --> GS
@@ -141,8 +143,11 @@ graph LR
     Net -.subnet_ids.-> Storage
     GS -.tags.-> Storage
     
-    Net -.subnet_ids.-> Redis
-    GS -.tags.-> Redis
+    Net -.subnet_ids.-> SQL
+    GS -.tags.-> SQL
+    
+    Net -.subnet_ids.-> PG
+    GS -.tags.-> PG
     
     Cosmos -.endpoint, key.-> AKS
     Cosmos -.endpoint, key.-> CA
@@ -399,7 +404,7 @@ terraform apply
     ├─ Cosmos DB
     ├─ Key Vault
     ├─ Storage Account
-    └─ Redis Cache (optional)
+    └─ SQL / PostgreSQL (optional)
     
 Total Time:
 - AKS path: ~15-20 minutes
@@ -417,7 +422,6 @@ sequenceDiagram
     participant Ingress as Nginx Ingress<br/>(AKS Layer 2)
     participant API as Product API<br/>(AKS Pod)
     participant Cosmos as Cosmos DB<br/>(Layer 3)
-    participant Redis as Redis Cache<br/>(Layer 3)
     participant KV as Key Vault<br/>(Layer 3)
     
     Note over LB,Ingress: Layer 1: Networking (VNet, Subnets, NSGs)
@@ -430,16 +434,9 @@ sequenceDiagram
     API->>KV: Get Cosmos DB connection key
     KV-->>API: Return key (secure)
     
-    API->>Redis: Check cache for products
-    
-    alt Cache Hit
-        Redis-->>API: Return cached products
-    else Cache Miss
-        API->>Cosmos: Query products (VNet private)
-        Note over API,Cosmos: Uses subnet_ids["app-subnet"]<br/>from Layer 1
-        Cosmos-->>API: Return products
-        API->>Redis: Cache products (TTL: 5 min)
-    end
+    API->>Cosmos: Query products (VNet private)
+    Note over API,Cosmos: Uses subnet_ids["app-subnet"]<br/>from Layer 1
+    Cosmos-->>API: Return products
     
     API-->>Ingress: JSON response
     Ingress-->>LB: Forward response
@@ -478,7 +475,7 @@ sequenceDiagram
 
 ## 📚 Related Documentation
 
-- **[Full Architecture Guide](./ARCHITECTURE-NEW.md)** - Complete detailed documentation with all code
+- **[Full Architecture Guide](./technical/README.md)** - Complete detailed documentation with all code
 - **[Azure DevOps Setup](./AZURE-DEVOPS-SETUP.md)** - CI/CD pipeline configuration
 - **[Implementation Phases](./IMPLEMENTATION-PHASES.md)** - Week-by-week rollout plan
 

@@ -9,7 +9,9 @@ This is a **production-ready, enterprise-grade Terraform framework** for Azure t
 - ✅ **Environment separation** (dev/staging/prod)
 - ✅ **CI/CD integration** with Azure DevOps
 - ✅ **Security-first approach** with OIDC authentication
+- ✅ **DevSecOps pipeline** with secret scanning, IaC security, and cost estimation
 - ✅ **Governance and compliance** built-in
+- ✅ **Hardened state storage** with GRS, versioning, soft delete, and firewall
 - ✅ **Complete documentation** for technical and non-technical audiences
 
 ## 📁 Repository Structure
@@ -26,10 +28,17 @@ terraform-infrastructure/
 │   │   ├── staging/               # Staging environment
 │   │   └── prod/                  # Production environment
 │   └── modules/                   # Reusable Terraform modules
+│       ├── _shared/               # Shared naming conventions
 │       ├── aks/                   # Azure Kubernetes Service
+│       ├── container-app/         # Azure Container Apps
 │       ├── cosmosdb/              # Azure Cosmos DB
+│       ├── landing-zone/          # Landing Zone foundation
 │       ├── networking/            # Virtual Networks & Subnets
-│       └── container-app/         # Azure Container Apps
+│       ├── postgresql/            # PostgreSQL Flexible Server
+│       ├── security/              # Azure Key Vault
+│       ├── sql-database/          # Azure SQL Database
+│       ├── storage/               # Azure Storage Account
+│       └── webapp/                # Azure App Service
 ├── pipelines/                     # Azure DevOps CI/CD pipelines
 │   ├── ci-terraform-plan.yml     # CI: Plan on Pull Request
 │   ├── cd-terraform-apply.yml    # CD: Apply with approvals
@@ -115,17 +124,21 @@ Developer → Create PR → CI: Terraform Plan
 
 ### 📘 Technical Documentation
 - **[Azure DevOps Setup Guide](docs/AZURE-DEVOPS-SETUP.md)** - CI/CD pipeline setup
-- **[Architecture Overview](docs/ARCHITECTURE.md)** - Technical architecture details
+- **[Architecture Quick Reference](docs/ARCHITECTURE-QUICK-REFERENCE.md)** - Technical architecture details
 - **[Technical Documentation](docs/technical/README.md)** - Module details and usage
+- **[DevSecOps Plan](docs/AZURE-DEVSECOPS-IMPLEMENTATION-PLAN.md)** - Security in CI/CD
 
 ### 🏗️ Module Documentation (How It Works)
 Each module has its own "How It Works" guide:
 - **[AKS (Kubernetes)](infra/modules/aks/HOW-IT-WORKS.md)** - Containers, pods, networking
 - **[Container Apps](infra/modules/container-app/HOW-IT-WORKS.md)** - Serverless containers
 - **[Cosmos DB](infra/modules/cosmosdb/HOW-IT-WORKS.md)** - NoSQL database, partitions
-
+- **[Landing Zone](infra/modules/landing-zone/HOW-IT-WORKS.md)** - Shared foundation infrastructure
 - **[Networking](infra/modules/networking/HOW-IT-WORKS.md)** - VNets, subnets, NSGs
+- **[PostgreSQL](infra/modules/postgresql/HOW-IT-WORKS.md)** - Relational database (open source)
 - **[Security](infra/modules/security/HOW-IT-WORKS.md)** - Key Vault, secrets
+- **[SQL Database](infra/modules/sql-database/HOW-IT-WORKS.md)** - Azure SQL, relational data
+- **[Storage](infra/modules/storage/HOW-IT-WORKS.md)** - Blob, file, and queue storage
 - **[Web App](infra/modules/webapp/HOW-IT-WORKS.md)** - App Service, slots
 
 ### 📊 Executive Summary
@@ -140,9 +153,23 @@ Each module has its own "How It Works" guide:
 
 | Environment | Monthly Cost | Use Case |
 |-------------|-------------|----------|
-| Development | $200-500 | Dev/testing |
+| Development | $100-300 | Dev/testing |
 | Staging | $800-1,500 | UAT, performance testing |
 | Production | $3,000-8,000 | Live workloads, HA |
+
+## 🛡️ DevSecOps Pipeline
+
+The CI pipeline automatically runs **5 stages** on every Pull Request:
+
+| Stage | Tool | Purpose |
+|-------|------|-------|
+| 1. Secret Scan | GitLeaks | Detects leaked credentials in code |
+| 2. Validate | Terraform | Format check + configuration validation |
+| 3. Plan | Terraform | Preview infrastructure changes |
+| 4. Security Scan | Checkov | IaC security and compliance scanning |
+| 5. Cost Estimate | Infracost | Monthly cost impact of changes |
+
+The CD pipeline adds **real post-deployment validation** — verifying that deployed resources (RG, VNet, Key Vault, AKS) actually exist in Azure.
 
 ## 🆘 Support
 

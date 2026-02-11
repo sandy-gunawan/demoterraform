@@ -1,11 +1,6 @@
 output "resource_group_name" {
   description = "WebApp resource group name"
-  value       = azurerm_resource_group.webapp.name
-}
-
-output "resource_group_id" {
-  description = "WebApp resource group ID"
-  value       = azurerm_resource_group.webapp.id
+  value       = var.resource_group_name
 }
 
 output "app_service_plan_id" {
@@ -25,7 +20,7 @@ output "webapp_id" {
 
 output "webapp_name" {
   description = "Web App name"
-  value       = var.webapp_name
+  value       = var.app_name
 }
 
 output "webapp_default_hostname" {

@@ -26,5 +26,5 @@ output "principal_id" {
 
 output "resource_group_name" {
   description = "Resource group name"
-  value       = azurerm_resource_group.aks.name
+  value       = var.resource_group_name
 }

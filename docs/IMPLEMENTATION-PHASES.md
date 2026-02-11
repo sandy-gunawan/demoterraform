@@ -543,7 +543,7 @@ Before declaring the framework "production ready":
 
 ## 🎓 Recommended Reading Order
 
-1. **[Phase-Based Implementation Guide](docs/IMPLEMENTATION-PHASES.md)** (This document)
+1. **[Phase-Based Implementation Guide](IMPLEMENTATION-PHASES.md)** (This document)
 2. **[Azure DevOps Setup Guide](docs/AZURE-DEVOPS-SETUP.md)** - Detailed technical steps
 3. **[Technical Documentation](docs/technical/README.md)** - Module deep dive
 4. **[Executive Summary](docs/executive/README.md)** - Business case

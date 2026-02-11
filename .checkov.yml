@@ -1,0 +1,25 @@
+# Checkov Configuration
+# https://www.checkov.io/2.Basics/CLI%20Command%20Reference.html
+
+# Framework to scan
+framework:
+  - terraform
+
+# Directories to scan
+directory:
+  - infra/
+
+# Skip specific checks (customize per your org policies)
+# Uncomment to skip checks that don't apply
+skip-check:
+  # - CKV_AZURE_35   # Storage account default network access
+  # - CKV_AZURE_43   # Storage account queue logging
+
+# Output format
+output: cli
+
+# Enable compact output
+compact: true
+
+# Soft fail (don't block CI) - set to false for strict mode
+soft-fail: false

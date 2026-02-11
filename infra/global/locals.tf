@@ -32,7 +32,6 @@ locals {
     Organization    = local.naming.organization
     Project         = local.naming.project
     Environment     = local.naming.environment
-    DeploymentDate  = timestamp()
     CostCenter      = var.cost_center
     Owner           = var.owner_email
     Repository      = var.repository_url

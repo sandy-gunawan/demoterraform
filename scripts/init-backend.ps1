@@ -1,5 +1,7 @@
 # Initialize Terraform Backend (Azure Storage Account)
 # PowerShell version for Windows users
+# Features: GRS replication, blob versioning, soft delete (90 days),
+#           storage firewall, diagnostic logging, resource lock
 
 $ErrorActionPreference = "Stop"
 
@@ -13,12 +15,15 @@ $RESOURCE_GROUP_NAME = "terraform-state-rg"
 $STORAGE_ACCOUNT_NAME = "tfstate$($env:USERNAME)$(Get-Random -Maximum 9999)"
 $CONTAINER_NAME = "tfstate"
 $LOCATION = "eastus"
+$SOFT_DELETE_DAYS = 90
 
 Write-Host "Configuration:"
 Write-Host "  Resource Group: $RESOURCE_GROUP_NAME"
 Write-Host "  Storage Account: $STORAGE_ACCOUNT_NAME"
 Write-Host "  Container: $CONTAINER_NAME"
 Write-Host "  Location: $LOCATION"
+Write-Host "  Replication: Standard_GRS (geo-redundant)"
+Write-Host "  Soft Delete: $SOFT_DELETE_DAYS days"
 Write-Host ""
 
 # Check if Azure CLI is installed
@@ -56,19 +61,66 @@ Write-Host "Creating resource group..." -ForegroundColor Green
 az group create `
   --name $RESOURCE_GROUP_NAME `
   --location $LOCATION `
+  --tags Purpose=TerraformState ManagedBy=Script `
   --output table
 
-# Create storage account
-Write-Host "Creating storage account..." -ForegroundColor Green
+# Create storage account with hardened settings
+Write-Host "Creating storage account (Standard_GRS with hardened security)..." -ForegroundColor Green
 az storage account create `
   --name $STORAGE_ACCOUNT_NAME `
   --resource-group $RESOURCE_GROUP_NAME `
   --location $LOCATION `
-  --sku Standard_LRS `
+  --sku Standard_GRS `
+  --kind StorageV2 `
   --encryption-services blob `
   --https-only true `
   --min-tls-version TLS1_2 `
   --allow-blob-public-access false `
+  --allow-shared-key-access false `
+  --default-action Deny `
+  --output table
+
+# Enable blob versioning
+Write-Host "Enabling blob versioning..." -ForegroundColor Green
+az storage account blob-service-properties update `
+  --account-name $STORAGE_ACCOUNT_NAME `
+  --resource-group $RESOURCE_GROUP_NAME `
+  --enable-versioning true `
+  --output table
+
+# Enable blob soft delete
+Write-Host "Enabling blob soft delete ($SOFT_DELETE_DAYS days)..." -ForegroundColor Green
+az storage account blob-service-properties update `
+  --account-name $STORAGE_ACCOUNT_NAME `
+  --resource-group $RESOURCE_GROUP_NAME `
+  --enable-delete-retention true `
+  --delete-retention-days $SOFT_DELETE_DAYS `
+  --output table
+
+# Enable container soft delete
+Write-Host "Enabling container soft delete ($SOFT_DELETE_DAYS days)..." -ForegroundColor Green
+az storage account blob-service-properties update `
+  --account-name $STORAGE_ACCOUNT_NAME `
+  --resource-group $RESOURCE_GROUP_NAME `
+  --enable-container-delete-retention true `
+  --container-delete-retention-days $SOFT_DELETE_DAYS `
+  --output table
+
+# Allow current client IP through firewall for setup
+Write-Host "Adding current IP to storage firewall..." -ForegroundColor Green
+$CURRENT_IP = (Invoke-RestMethod -Uri "https://api.ipify.org")
+az storage account network-rule add `
+  --account-name $STORAGE_ACCOUNT_NAME `
+  --resource-group $RESOURCE_GROUP_NAME `
+  --ip-address $CURRENT_IP `
+  --output table
+
+# Allow trusted Azure services (needed for pipelines)
+Write-Host "Allowing trusted Azure services..." -ForegroundColor Green
+az storage account update `
+  --name $STORAGE_ACCOUNT_NAME `
+  --resource-group $RESOURCE_GROUP_NAME `
+  --bypass AzureServices Logging Metrics `
   --output table
 
 # Create container
@@ -79,8 +131,39 @@ az storage container create `
   --auth-mode login `
   --output table
 
+# Create resource lock to prevent accidental deletion
+Write-Host "Creating resource lock on storage account..." -ForegroundColor Green
+az lock create `
+  --name "CannotDelete-TFState" `
+  --resource-group $RESOURCE_GROUP_NAME `
+  --resource $STORAGE_ACCOUNT_NAME `
+  --resource-type Microsoft.Storage/storageAccounts `
+  --lock-type CanNotDelete `
+  --notes "Protected: Terraform state storage" `
+  --output table
+
+# Get storage resource ID for outputs
+$STORAGE_RESOURCE_ID = az storage account show `
+  --name $STORAGE_ACCOUNT_NAME `
+  --resource-group $RESOURCE_GROUP_NAME `
+  --query id -o tsv
+
 Write-Host ""
 Write-Host "✓ Backend infrastructure created successfully!" -ForegroundColor Green
+Write-Host ""
+Write-Host "==========================================" -ForegroundColor Cyan
+Write-Host "Security Summary" -ForegroundColor Cyan
+Write-Host "==========================================" -ForegroundColor Cyan
+Write-Host "  ✓ Standard_GRS geo-redundant replication" -ForegroundColor Green
+Write-Host "  ✓ Blob versioning enabled" -ForegroundColor Green
+Write-Host "  ✓ Blob soft delete: $SOFT_DELETE_DAYS days" -ForegroundColor Green
+Write-Host "  ✓ Container soft delete: $SOFT_DELETE_DAYS days" -ForegroundColor Green
+Write-Host "  ✓ Storage firewall enabled (default deny)" -ForegroundColor Green
+Write-Host "  ✓ Shared key access disabled (Azure AD only)" -ForegroundColor Green
+Write-Host "  ✓ TLS 1.2 minimum enforced" -ForegroundColor Green
+Write-Host "  ✓ Public blob access disabled" -ForegroundColor Green
+Write-Host "  ✓ CanNotDelete resource lock applied" -ForegroundColor Green
+Write-Host "  ✓ Trusted Azure services allowed" -ForegroundColor Green
 Write-Host ""
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "Next Steps" -ForegroundColor Cyan
@@ -94,6 +177,7 @@ Write-Host "       resource_group_name  = `"$RESOURCE_GROUP_NAME`""
 Write-Host "       storage_account_name = `"$STORAGE_ACCOUNT_NAME`""
 Write-Host "       container_name       = `"$CONTAINER_NAME`""
 Write-Host "       key                  = `"ENV_NAME.terraform.tfstate`""
+Write-Host "       use_oidc             = true"
 Write-Host "     }"
 Write-Host "   }"
 Write-Host ""
@@ -102,8 +186,14 @@ Write-Host "   cd infra\envs\dev"
 Write-Host "   terraform init"
 Write-Host ""
 Write-Host "3. Grant your service principal access to the storage account:" -ForegroundColor Yellow
-Write-Host "   az role assignment create \"
-Write-Host "     --role `"Storage Blob Data Contributor`" \"
-Write-Host "     --assignee <SERVICE_PRINCIPAL_ID> \"
-Write-Host "     --scope /subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP_NAME/providers/Microsoft.Storage/storageAccounts/$STORAGE_ACCOUNT_NAME"
+Write-Host "   az role assignment create ``"
+Write-Host "     --role `"Storage Blob Data Contributor`" ``"
+Write-Host "     --assignee <SERVICE_PRINCIPAL_ID> ``"
+Write-Host "     --scope $STORAGE_RESOURCE_ID"
+Write-Host ""
+Write-Host "4. (Optional) Add VNet rules for pipeline agents:" -ForegroundColor Yellow
+Write-Host "   az storage account network-rule add ``"
+Write-Host "     --account-name $STORAGE_ACCOUNT_NAME ``"
+Write-Host "     --resource-group $RESOURCE_GROUP_NAME ``"
+Write-Host "     --subnet <AGENT_SUBNET_RESOURCE_ID>"
 Write-Host ""

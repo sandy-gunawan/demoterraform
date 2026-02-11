@@ -2,7 +2,7 @@
 
 **Purpose:** Document how Azure DevOps CI/CD applies to Terraform infrastructure deployment, meeting BSI's requirements for standardized IaC with governance gates and DevSecOps baseline.
 
-**Status:** 📝 Planning / Future Implementation  
+**Status:** ⚠️ Partially Implemented (CI pipeline with DevSecOps stages ready, CD pipeline ready)  
 **Created:** 2026-02-03  
 **Priority:** Medium (implement after core framework is stable)
 
@@ -31,7 +31,7 @@ You have **TWO separate CI/CD pipelines**:
 ### 1. Infrastructure CI/CD (This Framework)
 - **What:** Deploy Terraform infrastructure (AKS, VNet, Cosmos DB)
 - **Tool:** Azure DevOps Pipelines + Terraform
-- **Location:** `.azuredevops/pipelines/` in this repo
+- **Location:** `pipelines/` in this repo
 - **Secrets:** Service Principal, state storage keys
 - **Approvals:** Before production infrastructure changes
 
@@ -131,7 +131,7 @@ Total: $3,450/mo → $3,900/mo
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ Developer: Update Terraform (enable_cosmos_db = true)           │
+│ Developer: Update Terraform (enable_cosmosdb = true)           │
 └────────────────────┬────────────────────────────────────────────┘
                      │
                      ▼

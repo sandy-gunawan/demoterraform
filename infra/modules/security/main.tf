@@ -82,17 +82,17 @@ resource "azurerm_private_endpoint" "kv_endpoint" {
 
 # Private DNS Zone for private endpoint
 resource "azurerm_private_dns_zone" "kv_dns" {
-  count               = var.create_private_endpoint ? 1 : 0
+  count               = var.enable_private_endpoint ? 1 : 0
   name                = "privatelink.vaultcore.azure.net"
-  resource_group_name = azurerm_resource_group.security.name
+  resource_group_name = var.resource_group_name
 
   tags = var.tags
 }
 
 resource "azurerm_private_dns_zone_virtual_network_link" "kv_dns_link" {
-  count                 = var.create_private_endpoint && var.vnet_id != null ? 1 : 0
+  count                 = var.enable_private_endpoint && var.vnet_id != null ? 1 : 0
   name                  = "${var.key_vault_name}-dns-link"
-  resource_group_name   = azurerm_resource_group.security.name
+  resource_group_name   = var.resource_group_name
   private_dns_zone_name = azurerm_private_dns_zone.kv_dns[0].name
   virtual_network_id    = var.vnet_id
 
@@ -100,10 +100,10 @@ resource "azurerm_private_dns_zone_virtual_network_link" "kv_dns_link" {
 }
 
 resource "azurerm_private_dns_a_record" "kv_dns_a" {
-  count               = var.create_private_endpoint ? 1 : 0
+  count               = var.enable_private_endpoint ? 1 : 0
   name                = azurerm_key_vault.kv.name
   zone_name           = azurerm_private_dns_zone.kv_dns[0].name
-  resource_group_name = azurerm_resource_group.security.name
+  resource_group_name = var.resource_group_name
   ttl                 = 300
   records             = [azurerm_private_endpoint.kv_endpoint[0].private_service_connection[0].private_ip_address]
 

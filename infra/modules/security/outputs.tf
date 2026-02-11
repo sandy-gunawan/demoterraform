@@ -1,11 +1,6 @@
 output "resource_group_name" {
   description = "Security resource group name"
-  value       = azurerm_resource_group.security.name
-}
-
-output "resource_group_id" {
-  description = "Security resource group ID"
-  value       = azurerm_resource_group.security.id
+  value       = var.resource_group_name
 }
 
 output "key_vault_id" {

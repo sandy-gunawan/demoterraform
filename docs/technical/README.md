@@ -40,7 +40,7 @@ az storage container create --name tfstate --account-name tfstateXXXXX
 ```
 
 4. **Update backend configuration**
-Edit `shared/backend.tf` and uncomment the backend block with your storage account details.
+Edit `infra/envs/dev/backend.tf` (each environment has its own backend configuration) with your storage account details.
 
 ## Architecture Overview
 
@@ -48,22 +48,35 @@ Edit `shared/backend.tf` and uncomment the backend block with your storage accou
 
 ```
 terraform-framework/
-├── modules/                    # Reusable infrastructure components
-│   ├── aks/                   # Kubernetes cluster module
-│   ├── cosmosdb/              # Database module
-│   ├── networking/            # Virtual networks and subnets
-│   ├── container-app/         # Container Apps module
-│   └── security/              # Security resources
-├── environments/              # Environment-specific configurations
-│   ├── development/           # Dev environment (simple security)
-│   ├── staging/               # Staging environment (medium security)
-│   └── production/            # Production environment (high security)
-├── shared/                    # Shared configurations
-│   ├── backend.tf             # Terraform backend setup
-│   └── variables.tf           # Common variables
-└── examples/                  # Working examples
-    ├── aks-application/       # Full AKS deployment
-    └── landing-zone/          # Landing zone setup
+├── infra/                         # Infrastructure as Code
+│   ├── global/                    # Shared standards and versions
+│   │   ├── versions.tf            # Terraform/provider version pins
+│   │   ├── providers.tf           # Provider documentation
+│   │   ├── locals.tf              # Naming & tagging conventions
+│   │   └── outputs.tf             # Shared outputs
+│   ├── envs/                      # Environment-specific configurations
+│   │   ├── dev/                   # Development (10.1.0.0/16, 30-day logs)
+│   │   ├── staging/               # Staging (10.2.0.0/16, 60-day logs)
+│   │   └── prod/                  # Production (10.3.0.0/16, 90-day logs)
+│   └── modules/                   # Reusable infrastructure components
+│       ├── _shared/               # Shared naming conventions
+│       ├── aks/                   # Azure Kubernetes Service
+│       ├── container-app/         # Azure Container Apps
+│       ├── cosmosdb/              # Azure Cosmos DB
+│       ├── landing-zone/          # Landing Zone (VNet, subnets, NSGs, Log Analytics)
+│       ├── networking/            # Virtual Networks & Subnets
+│       ├── postgresql/            # PostgreSQL Flexible Server
+│       ├── security/              # Azure Key Vault & secrets
+│       ├── sql-database/          # Azure SQL Database
+│       ├── storage/               # Azure Storage Account
+│       └── webapp/                # Azure App Service
+├── pipelines/                     # Azure DevOps CI/CD
+├── scripts/                       # Helper scripts
+├── examples/                      # Working examples
+│   ├── aks-application/           # Full AKS deployment
+│   ├── enterprise-hub-spoke/      # Hub-spoke multi-network
+│   └── pattern-2-delegated/       # Multi-team delegation
+└── docs/                          # Documentation
 ```
 
 ### Module Design Philosophy
@@ -256,7 +269,7 @@ az monitor log-analytics query \
 **Usage**:
 ```hcl
 module "networking" {
-  source = "../../../infra/modules/networking"
+  source = "../../modules/networking"
 
   network_name  = "prod-vnet"
   location      = "eastus"
@@ -268,6 +281,187 @@ module "networking" {
       service_endpoints = ["Microsoft.Storage", "Microsoft.KeyVault"]
     }
   }
+}
+```
+
+### Landing Zone Module
+
+**Purpose**: Deploys the shared foundation infrastructure that all applications connect to.
+
+**Why This Matters**:
+- Provides a consistent base (VNet, subnets, NSGs, Log Analytics) deployed once per environment
+- All workload modules (AKS, Container Apps, Web App) connect to this shared networking layer
+- Central logging and monitoring for governance
+
+**Key Features**:
+- Resource Group, VNet, and subnets
+- NSGs per subnet with environment-appropriate rules
+- Log Analytics workspace for centralized monitoring
+- Optional NAT Gateway for static outbound IP
+
+**Usage**:
+```hcl
+module "landing_zone" {
+  source = "../../modules/landing-zone"
+
+  project_name        = "myapp"
+  environment         = "prod"
+  location            = "eastus"
+  address_space       = ["10.3.0.0/16"]
+  enable_nat_gateway  = true
+  log_retention_days  = 90
+}
+```
+
+### Security Module (Key Vault)
+
+**Purpose**: Deploys Azure Key Vault with enterprise security features.
+
+**Why This Matters**:
+- Centralized secret and key management
+- RBAC-based access (no access policies)
+- Private endpoint support for network isolation
+- Audit logging for compliance
+
+**Key Features**:
+- RBAC authorization (recommended over access policies)
+- Soft delete + optional purge protection
+- Private endpoint with DNS zone integration
+- Diagnostic logging to Log Analytics
+- Network ACLs for firewall rules
+
+**Usage**:
+```hcl
+module "security" {
+  source = "../../modules/security"
+
+  resource_group_name = azurerm_resource_group.main.name
+  key_vault_name      = "myapp-kv-prod"
+  location            = "eastus"
+  tenant_id           = var.tenant_id
+
+  purge_protection_enabled = true
+  enable_private_endpoint  = true
+  private_endpoint_subnet_id = module.networking.subnet_ids["pe-subnet"]
+  vnet_id                    = module.networking.vnet_id
+}
+```
+
+### Web App Module
+
+**Purpose**: Deploys Azure App Service for web applications.
+
+**Why This Matters**:
+- Supports both Linux and Windows runtimes
+- Built-in VNet integration for private access
+- Managed identity for secure service-to-service auth
+- Health checks and diagnostic logging
+
+**Usage**:
+```hcl
+module "webapp" {
+  source = "../../modules/webapp"
+
+  resource_group_name = azurerm_resource_group.main.name
+  app_name            = "myapp-web-prod"
+  location            = "eastus"
+  sku_name            = "P1v3"
+  os_type             = "Linux"
+  runtime_stack       = "NODE"
+  runtime_version     = "18-lts"
+}
+```
+
+### Container App Module
+
+**Purpose**: Deploys Azure Container Apps for serverless container workloads.
+
+**Why This Matters**:
+- No infrastructure management (fully managed)
+- Scale-to-zero for cost savings
+- Built-in Dapr support for microservices
+
+**Usage**:
+```hcl
+module "container_app" {
+  source = "../../modules/container-app"
+
+  resource_group_name  = azurerm_resource_group.main.name
+  environment_name     = "myapp-cae-prod"
+  location             = "eastus"
+  infrastructure_subnet_id = module.networking.subnet_ids["app-subnet"]
+}
+```
+
+### SQL Database Module
+
+**Purpose**: Deploys Azure SQL Server with databases, firewall rules, and private endpoints.
+
+**Why This Matters**:
+- Fully managed relational database with built-in HA
+- Transparent data encryption and auditing
+- Elastic pools for multi-database cost optimization
+- Private endpoint support for network isolation
+
+**Usage**:
+```hcl
+module "sql_database" {
+  source = "../../modules/sql-database"
+
+  resource_group_name = azurerm_resource_group.main.name
+  server_name         = "myapp-sql-prod"
+  location            = "eastus"
+  administrator_login = "sqladmin"
+  databases = {
+    "appdb" = { sku_name = "S1", max_size_gb = 50 }
+  }
+}
+```
+
+### PostgreSQL Module
+
+**Purpose**: Deploys Azure PostgreSQL Flexible Server with HA and VNet integration.
+
+**Why This Matters**:
+- Open-source compatible, no vendor lock-in
+- Zone-redundant HA for production
+- Automatic backups with point-in-time restore
+- Delegated subnet for network isolation
+
+**Usage**:
+```hcl
+module "postgresql" {
+  source = "../../modules/postgresql"
+
+  resource_group_name  = azurerm_resource_group.main.name
+  server_name          = "myapp-pg-prod"
+  location             = "eastus"
+  administrator_login  = "pgadmin"
+  sku_name             = "GP_Standard_D2s_v3"
+  delegated_subnet_id  = module.networking.subnet_ids["data-subnet"]
+  private_dns_zone_id  = azurerm_private_dns_zone.postgres.id
+}
+```
+
+### Storage Module
+
+**Purpose**: Deploys Azure Storage Account with containers, network rules, and private endpoints.
+
+**Why This Matters**:
+- Durable, highly available, and scalable cloud storage
+- Blob, file, table, and queue services
+- Immutable storage for compliance scenarios
+- Private endpoint support
+
+**Usage**:
+```hcl
+module "storage" {
+  source = "../../modules/storage"
+
+  resource_group_name  = azurerm_resource_group.main.name
+  storage_account_name = "myappstorageprod"
+  location             = "eastus"
+  account_replication_type = "GRS"
 }
 ```
 
@@ -335,7 +529,7 @@ module "networking" {
 
 1. **Choose Your Environment**
 ```bash
-cd environments/development  # or staging/production
+cd infra/envs/dev  # or staging/prod
 ```
 
 2. **Configure Variables**
@@ -491,5 +685,5 @@ az network watcher test-connectivity --source-resource <source> --dest-resource 
 
 - Review the [Executive Documentation](../executive/README.md)
 - Explore [AKS Application Example](../../examples/aks-application/README.md)
-- Check out [Landing Zone Example](../../examples/landing-zone/README.md)
-- Set up [CI/CD Pipeline](ci-cd-guide.md)
+- Check out [Enterprise Hub-Spoke Example](../../examples/enterprise-hub-spoke/README.md)
+- Set up [CI/CD Pipelines](../AZURE-DEVOPS-SETUP.md)

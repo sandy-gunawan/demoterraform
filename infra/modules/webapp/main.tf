@@ -100,9 +100,9 @@ resource "azurerm_linux_web_app" "webapp" {
 
 resource "azurerm_windows_web_app" "webapp" {
   count               = var.os_type == "Windows" ? 1 : 0
-  name                = var.webapp_name
-  location            = azurerm_resource_group.webapp.location
-  resource_group_name = azurerm_resource_group.webapp.name
+  name                = var.app_name
+  location            = var.location
+  resource_group_name = var.resource_group_name
   service_plan_id     = azurerm_service_plan.plan.id
 
   https_only                    = var.https_only
@@ -181,7 +181,7 @@ resource "azurerm_windows_web_app" "webapp" {
 # Diagnostic settings
 resource "azurerm_monitor_diagnostic_setting" "webapp_diagnostics" {
   count                      = var.log_analytics_workspace_id != null ? 1 : 0
-  name                       = "${var.webapp_name}-diagnostics"
+  name                       = "${var.app_name}-diagnostics"
   target_resource_id         = var.os_type == "Linux" ? azurerm_linux_web_app.webapp[0].id : azurerm_windows_web_app.webapp[0].id
   log_analytics_workspace_id = var.log_analytics_workspace_id
 

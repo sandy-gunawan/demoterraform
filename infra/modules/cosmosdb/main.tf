@@ -118,13 +118,8 @@ resource "azurerm_cosmosdb_sql_container" "container" {
     }
   }
 
-  # Hierarchical partition keys for better scalability
-  dynamic "hierarchical_partition_key" {
-    for_each = length(each.value.partition_key_paths) > 1 ? [1] : []
-    content {
-      path = each.value.partition_key_paths
-    }
-  }
+  # Note: Hierarchical partition keys are supported by providing multiple values
+  # in partition_key_paths with partition_key_version = 2. No additional block needed.
 
   # Default TTL
   default_ttl = each.value.default_ttl
@@ -174,4 +169,33 @@ resource "azurerm_private_endpoint" "cosmosdb_endpoint" {
   }
 
   tags = var.tags
+}
+
+# Private DNS Zone for Cosmos DB private endpoint
+resource "azurerm_private_dns_zone" "cosmosdb" {
+  count               = var.enable_private_endpoint && var.vnet_id != null ? 1 : 0
+  name                = "privatelink.documents.azure.com"
+  resource_group_name = var.resource_group_name
+
+  tags = var.tags
+}
+
+resource "azurerm_private_dns_zone_virtual_network_link" "cosmosdb" {
+  count                 = var.enable_private_endpoint && var.vnet_id != null ? 1 : 0
+  name                  = "${var.account_name}-dns-link"
+  resource_group_name   = var.resource_group_name
+  private_dns_zone_name = azurerm_private_dns_zone.cosmosdb[0].name
+  virtual_network_id    = var.vnet_id
+  registration_enabled  = false
+
+  tags = var.tags
+}
+
+resource "azurerm_private_dns_a_record" "cosmosdb" {
+  count               = var.enable_private_endpoint && var.vnet_id != null ? 1 : 0
+  name                = var.account_name
+  zone_name           = azurerm_private_dns_zone.cosmosdb[0].name
+  resource_group_name = var.resource_group_name
+  ttl                 = 300
+  records             = [azurerm_private_endpoint.cosmosdb_endpoint[0].private_service_connection[0].private_ip_address]
 }

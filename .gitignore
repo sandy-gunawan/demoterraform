@@ -1,0 +1,38 @@
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+crash.log
+crash.*.log
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
+
+# Sensitive variable files (keep .tfvars templates, exclude actual secrets)
+# Uncomment below if your .tfvars contain real secrets:
+# *.auto.tfvars
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Infracost
+.infracost/
+
+# Checkov
+.checkov/
+
+# Plan output files
+*.tfplan
+plan.out

@@ -32,5 +32,5 @@ output "container_names" {
 
 output "resource_group_name" {
   description = "Resource group name"
-  value       = azurerm_resource_group.cosmosdb.name
+  value       = var.resource_group_name
 }

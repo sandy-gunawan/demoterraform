@@ -30,9 +30,10 @@ resource "azurerm_log_analytics_workspace" "hub" {
 module "hub_network" {
   source = "../../infra/modules/networking"
 
-  network_name  = "${var.organization_name}-hub-vnet"
-  location      = var.location
-  address_space = [var.hub_address_space]
+  resource_group_name = azurerm_resource_group.hub.name
+  network_name        = "${var.organization_name}-hub-vnet"
+  location            = var.location
+  address_space       = [var.hub_address_space]
 
   subnets = {
     "GatewaySubnet" = {
@@ -132,8 +133,9 @@ resource "azurerm_container_registry" "shared" {
 module "shared_cosmosdb" {
   source = "../../infra/modules/cosmosdb"
 
-  account_name      = "${var.organization_name}-shared-cosmos"
-  location          = var.location
+  resource_group_name = azurerm_resource_group.hub.name
+  account_name        = "${var.organization_name}-shared-cosmos"
+  location            = var.location
   consistency_level = "Session"
 
   failover_locations = [
@@ -177,9 +179,10 @@ module "spoke_networks" {
   source   = "../../infra/modules/networking"
   for_each = var.spoke_networks
 
-  network_name  = "${var.organization_name}-${each.key}-vnet"
-  location      = var.location
-  address_space = [each.value.address_space]
+  resource_group_name = azurerm_resource_group.hub.name
+  network_name        = "${var.organization_name}-${each.key}-vnet"
+  location            = var.location
+  address_space       = [each.value.address_space]
 
   subnets = {
     "workload-subnet" = {
@@ -242,7 +245,7 @@ resource "azurerm_virtual_network_peering" "spoke_to_hub" {
   for_each = var.spoke_networks
 
   name                      = "${each.key}-to-hub"
-  resource_group_name       = module.spoke_networks[each.key].resource_group_name
+  resource_group_name       = azurerm_resource_group.hub.name
   virtual_network_name      = module.spoke_networks[each.key].vnet_name
   remote_virtual_network_id = module.hub_network.vnet_id
 

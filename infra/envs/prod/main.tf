@@ -9,15 +9,22 @@ terraform {
   required_version = ">= 1.5.0"
 }
 
-# Backend configuration for remote state
-terraform {
-  backend "azurerm" {
-    resource_group_name  = "terraform-state-rg"
-    storage_account_name = "tfstate[yourname]"  # Replace with your storage account name
-    container_name       = "tfstate"
-    key                  = "prod.terraform.tfstate"
+# =============================================================================
+# PROVIDER CONFIGURATION
+# =============================================================================
+provider "azurerm" {
+  features {
+    key_vault {
+      purge_soft_delete_on_destroy    = false
+      recover_soft_deleted_key_vaults = true
+    }
+    resource_group {
+      prevent_deletion_if_contains_resources = true
+    }
   }
 }
+
+provider "azuread" {}
 
 # =============================================================================
 # RESOURCE GROUP - Always created
@@ -196,7 +203,7 @@ module "security" {
   source = "../../modules/security"
 
   resource_group_name = azurerm_resource_group.main.name
-  key_vault_name      = "${var.project_name}kvprod"  # No hyphens allowed
+  key_vault_name      = "${var.project_name}kvprod"  # Alphanumeric + hyphens, 3-24 chars
   location            = var.location
   tenant_id           = var.tenant_id
 
@@ -205,8 +212,9 @@ module "security" {
   network_acls_default_action = var.network_acl_default_action   # Deny
 
   # Private endpoint for Key Vault (if enabled)
-  enable_private_endpoint = var.enable_private_endpoints
+  enable_private_endpoint    = var.enable_private_endpoints
   private_endpoint_subnet_id = var.enable_private_endpoints ? module.networking.subnet_ids["pe-subnet"] : null
+  vnet_id                    = module.networking.vnet_id
 
   tags = module.global_standards.common_tags
 }
@@ -278,6 +286,7 @@ module "cosmosdb" {
   # Private endpoint for Cosmos DB (if enabled)
   enable_private_endpoint    = var.enable_private_endpoints
   private_endpoint_subnet_id = var.enable_private_endpoints ? module.networking.subnet_ids["pe-subnet"] : null
+  vnet_id                    = module.networking.vnet_id
 
   tags = module.global_standards.common_tags
 }

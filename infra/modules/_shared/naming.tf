@@ -139,6 +139,5 @@ output "tags" {
     project     = var.project_name
     environment = var.environment
     managed_by  = "terraform"
-    created_on  = timestamp()
   }
 }

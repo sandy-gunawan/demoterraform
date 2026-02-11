@@ -225,29 +225,98 @@ stages:
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
+                set -e
                 echo "==================================="
                 echo "POST-DEPLOYMENT VERIFICATION"
                 echo "==================================="
-                
-                # Read outputs
+                echo "Environment: ${{ parameters.environment }}"
+                echo ""
+
                 OUTPUTS_FILE="$(System.DefaultWorkingDirectory)/outputs/outputs.json"
-                
-                if [ -f "$OUTPUTS_FILE" ]; then
-                  echo "Terraform outputs found"
-                  cat $OUTPUTS_FILE | jq '.'
-                  
-                  # Example: Verify resource group exists
-                  # RG_NAME=$(cat $OUTPUTS_FILE | jq -r '.resource_group_name.value')
-                  # az group show --name $RG_NAME > /dev/null 2>&1
-                  # if [ $? -eq 0 ]; then
-                  #   echo "✓ Resource Group $RG_NAME verified"
-                  # fi
-                  
-                  echo ""
-                  echo "✓ Post-deployment validation completed"
-                else
-                  echo "⚠ No outputs file found"
+                PASS=0
+                FAIL=0
+
+                if [ ! -f "$OUTPUTS_FILE" ]; then
+                  echo "##vso[task.logissue type=error]No outputs file found"
+                  exit 1
                 fi
+
+                echo "Terraform outputs:"
+                cat $OUTPUTS_FILE | jq '.'
+                echo ""
+
+                # ── Verify Resource Group ──
+                RG_NAME=$(cat $OUTPUTS_FILE | jq -r '.resource_group_name.value // empty')
+                if [ -n "$RG_NAME" ]; then
+                  if az group show --name "$RG_NAME" > /dev/null 2>&1; then
+                    echo "✓ Resource Group '$RG_NAME' exists"
+                    PASS=$((PASS+1))
+                  else
+                    echo "##vso[task.logissue type=error]Resource Group '$RG_NAME' NOT FOUND"
+                    FAIL=$((FAIL+1))
+                  fi
+                fi
+
+                # ── Verify VNet (if present) ──
+                VNET_NAME=$(cat $OUTPUTS_FILE | jq -r '.vnet_name.value // empty')
+                if [ -n "$VNET_NAME" ] && [ -n "$RG_NAME" ]; then
+                  if az network vnet show --name "$VNET_NAME" --resource-group "$RG_NAME" > /dev/null 2>&1; then
+                    echo "✓ VNet '$VNET_NAME' exists"
+                    PASS=$((PASS+1))
+                  else
+                    echo "##vso[task.logissue type=warning]VNet '$VNET_NAME' not found"
+                    FAIL=$((FAIL+1))
+                  fi
+                fi
+
+                # ── Verify Key Vault (if present) ──
+                KV_NAME=$(cat $OUTPUTS_FILE | jq -r '.key_vault_name.value // empty')
+                if [ -n "$KV_NAME" ]; then
+                  if az keyvault show --name "$KV_NAME" > /dev/null 2>&1; then
+                    echo "✓ Key Vault '$KV_NAME' exists"
+                    PASS=$((PASS+1))
+                  else
+                    echo "##vso[task.logissue type=warning]Key Vault '$KV_NAME' not found"
+                    FAIL=$((FAIL+1))
+                  fi
+                fi
+
+                # ── Verify Log Analytics Workspace (if present) ──
+                LAW_ID=$(cat $OUTPUTS_FILE | jq -r '.log_analytics_workspace_id.value // empty')
+                if [ -n "$LAW_ID" ]; then
+                  if az monitor log-analytics workspace show --ids "$LAW_ID" > /dev/null 2>&1; then
+                    echo "✓ Log Analytics Workspace exists"
+                    PASS=$((PASS+1))
+                  else
+                    echo "##vso[task.logissue type=warning]Log Analytics Workspace not found"
+                    FAIL=$((FAIL+1))
+                  fi
+                fi
+
+                # ── Verify AKS Cluster (if present) ──
+                AKS_NAME=$(cat $OUTPUTS_FILE | jq -r '.aks_cluster_name.value // empty')
+                if [ -n "$AKS_NAME" ] && [ -n "$RG_NAME" ]; then
+                  if az aks show --name "$AKS_NAME" --resource-group "$RG_NAME" > /dev/null 2>&1; then
+                    echo "✓ AKS Cluster '$AKS_NAME' exists and is reachable"
+                    PASS=$((PASS+1))
+                  else
+                    echo "##vso[task.logissue type=warning]AKS Cluster '$AKS_NAME' not found"
+                    FAIL=$((FAIL+1))
+                  fi
+                fi
+
+                echo ""
+                echo "==================================="
+                echo "VERIFICATION SUMMARY"
+                echo "==================================="
+                echo "  Passed: $PASS"
+                echo "  Failed: $FAIL"
+                echo ""
+
+                if [ "$FAIL" -gt 0 ]; then
+                  echo "##vso[task.logissue type=warning]$FAIL resource(s) failed post-deployment verification"
+                fi
+                echo "✓ Post-deployment validation completed"
       
       - job: NotifyTeam
         displayName: 'Send Deployment Notification'

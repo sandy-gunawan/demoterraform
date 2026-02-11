@@ -9,15 +9,22 @@ terraform {
   required_version = ">= 1.5.0"
 }
 
-# Backend configuration for remote state
-terraform {
-  backend "azurerm" {
-    resource_group_name  = "terraform-state-rg"
-    storage_account_name = "tfstate[yourname]"  # Replace with your storage account name
-    container_name       = "tfstate"
-    key                  = "staging.terraform.tfstate"
+# =============================================================================
+# PROVIDER CONFIGURATION
+# =============================================================================
+provider "azurerm" {
+  features {
+    key_vault {
+      purge_soft_delete_on_destroy    = false
+      recover_soft_deleted_key_vaults = true
+    }
+    resource_group {
+      prevent_deletion_if_contains_resources = true
+    }
   }
 }
+
+provider "azuread" {}
 
 # =============================================================================
 # RESOURCE GROUP - Always created
@@ -157,7 +164,7 @@ module "security" {
   source = "../../modules/security"
 
   resource_group_name = azurerm_resource_group.main.name
-  key_vault_name      = "${var.project_name}kvstaging"  # No hyphens allowed
+  key_vault_name      = "${var.project_name}kvstaging"  # Alphanumeric + hyphens, 3-24 chars
   location            = var.location
   tenant_id           = var.tenant_id
 

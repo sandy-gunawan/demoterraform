@@ -4,7 +4,7 @@
 **Audience:** Platform team, app teams, clients, and security team  
 **Focus:** **DevSecOps** - Security, compliance, and governance built into every step
 
-**Status:** 📝 Ready for Implementation  
+**Status:** ⚠️ Partially Implemented (CI pipeline stages 1-5 ready, CD pipeline ready)  
 **Created:** 2026-02-03  
 **Timeline:** 2-3 weeks for full implementation
 
@@ -75,7 +75,7 @@ Operational Issues:
 └─────────────────────────────────────────────────────────────────┘
 
 1. Developer: Update Terraform
-   └─> enable_cosmos_db = true
+   └─> enable_cosmosdb = true
    └─> Create Pull Request
         │
         ▼
@@ -2185,7 +2185,7 @@ landing_zone_subnet_id      = "/subscriptions/.../subnets/subnet-apps-dev"
 landing_zone_log_analytics  = "/subscriptions/.../workspaces/log-analytics-dev"
 
 # CRM Application Resources
-enable_app_service = true
+enable_webapp = true
 app_service_config = {
   sku_name = "P1v2"
   always_on = true

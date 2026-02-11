@@ -76,12 +76,12 @@ You'll be filling out a `dev.tfvars` file with ~15 parameters. Here's what you n
 
 | Parameter | What It Is | Where to Get It | Example |
 |-----------|-----------|----------------|---------|
-| `company_name` | Your organization name | Your company | `contoso` |
+| `organization_name` | Your organization name | Your company | `contoso` |
 | `environment` | Which environment | Choose one: dev/staging/prod | `dev` |
-| `workload` | Your application name | Your project | `tasks` |
+| `project_name` | Your application/project name | Your project | `tasks` |
 | `location` | Azure region | Ask your admin or choose closest | `eastus` |
 | `enable_aks` | Enable Kubernetes? | Yes for your API | `true` |
-| `enable_cosmos_db` | Enable database? | Yes for storing data | `true` |
+| `enable_cosmosdb` | Enable database? | Yes for storing data | `true` |
 | `enable_key_vault` | Enable secrets? | Yes for security | `true` |
 
 ---
@@ -113,8 +113,8 @@ WHAT I NEED:
   ☑️ Kubernetes (AKS) - Yes, for running containers
   ☑️ Cosmos DB - Yes, for storing task data
   ☑️ Key Vault - Yes, for storing secrets
-  ☐ Redis Cache - No, not needed yet
-  ☐ Service Bus - No, not needed yet
+  ☐ Container Apps - No, using AKS instead
+  ☐ Web App - No, not needed
 
 DATABASE REQUIREMENTS:
   Database Name: tasks-db
@@ -219,16 +219,16 @@ cd infra/envs/dev
 # STEP 1: Core Information (Copy from your form)
 # ============================================================================
 
-company_name = "contoso"        # ← Your company name (lowercase, no spaces)
-environment  = "dev"            # ← Always "dev" for dev environment
-workload     = "tasks"          # ← Your app name (lowercase, no spaces)
-location     = "eastus"         # ← Azure region (from your form)
+organization_name = "contoso"   # ← Your organization name (lowercase, no spaces)
+environment       = "dev"       # ← Always "dev" for dev environment
+project_name      = "tasks"     # ← Your app/project name (lowercase, no spaces)
+location          = "eastus"    # ← Azure region (from your form)
 ```
 
 **Where each value comes from:**
-- `company_name`: Your organization (ask platform team if unsure)
+- `organization_name`: Your organization (ask platform team if unsure)
 - `environment`: Fixed as `dev` (this file is for dev environment)
-- `workload`: Your application name - keep it short and descriptive
+- `project_name`: Your application name - keep it short and descriptive
 - `location`: Azure region - common options: `eastus`, `westus2`, `westeurope`
 
 ---
@@ -266,23 +266,18 @@ default_tags = {
 # ============================================================================
 
 # Toggle each feature on/off
-enable_aks              = true   # ← ☑️ You need Kubernetes
-enable_app_service      = false  # ← ☐ Not using App Service
-enable_cosmos_db        = true   # ← ☑️ You need database
-enable_redis            = false  # ← ☐ Not needed yet
-enable_service_bus      = false  # ← ☐ Not needed yet
-enable_front_door       = false  # ← ☐ Not needed in dev
-enable_key_vault        = true   # ← ☑️ You need secrets storage
-enable_application_gateway = false  # ← ☐ Not needed in dev
+enable_aks            = true   # ← ☑️ You need Kubernetes
+enable_container_apps = false  # ← ☐ Not using Container Apps
+enable_webapp         = false  # ← ☐ Not using App Service
+enable_cosmosdb       = true   # ← ☑️ You need database
+enable_key_vault      = true   # ← ☑️ You need secrets storage
 ```
 
 **Decision tree:**
-- **Need containers/Kubernetes?** → `enable_aks = true`
-- **Need web hosting (not containers)?** → `enable_app_service = true`
-- **Need database?** → `enable_cosmos_db = true`
-- **Need caching?** → `enable_redis = true`
-- **Need message queue?** → `enable_service_bus = true`
-- **Need global CDN?** → `enable_front_door = true`
+- **Need containers with Kubernetes features?** → `enable_aks = true`
+- **Need simple serverless containers?** → `enable_container_apps = true`
+- **Need web hosting (not containers)?** → `enable_webapp = true`
+- **Need NoSQL database?** → `enable_cosmosdb = true`
 - **Need secrets storage?** → `enable_key_vault = true` (recommended: always)
 
 **Rule of thumb for dev:**
@@ -325,7 +320,7 @@ aks_vm_size        = "Standard_D2s_v3"   # ← Server size (D2s_v3 = 2 CPU, 8GB 
 
 ```hcl
 # ============================================================================
-# STEP 5: Configure Database (Only if enable_cosmos_db = true)
+# STEP 5: Configure Database (Only if enable_cosmosdb = true)
 # ============================================================================
 
 # Basic settings
@@ -413,10 +408,10 @@ Your final `dev.tfvars` should look like this:
 # Core Configuration
 # ----------------------------------------------------------------------------
 
-company_name = "contoso"
-environment  = "dev"
-workload     = "tasks"
-location     = "eastus"
+organization_name = "contoso"
+project_name      = "tasks"
+environment       = "dev"
+location          = "eastus"
 
 # ----------------------------------------------------------------------------
 # Tags
@@ -435,14 +430,11 @@ default_tags = {
 # Feature Toggles - What infrastructure to create
 # ----------------------------------------------------------------------------
 
-enable_aks                 = true   # ✅ Kubernetes for running API
-enable_app_service         = false  # ❌ Not using App Service
-enable_cosmos_db           = true   # ✅ Database for tasks
-enable_redis               = false  # ❌ Not needed yet
-enable_service_bus         = false  # ❌ Not needed yet
-enable_front_door          = false  # ❌ Not needed in dev
-enable_key_vault           = true   # ✅ Secrets storage
-enable_application_gateway = false  # ❌ Not needed in dev
+enable_aks            = true   # ✅ Kubernetes for running API
+enable_container_apps = false  # ❌ Not using Container Apps
+enable_webapp         = false  # ❌ Not using App Service
+enable_cosmosdb       = true   # ✅ Database for tasks
+enable_key_vault      = true   # ✅ Secrets storage
 
 # ----------------------------------------------------------------------------
 # AKS Configuration
@@ -620,7 +612,7 @@ kubectl get pods -n tasks
 
 **Solution:**
 ```hcl
-# If enable_cosmos_db = true, you MUST also set:
+# If enable_cosmosdb = true, you MUST also set:
 cosmos_database_name = "tasks-db"  # ← Add this!
 ```
 
@@ -704,10 +696,10 @@ Based on this configuration, expected monthly costs:
 
 ## 📚 Next Steps
 
-1. **Add more containers:** Edit `dev.tfvars`, add `cosmos_container_comments`, re-run `terraform apply`
-2. **Enable Redis:** Set `enable_redis = true`, configure Redis settings
-3. **Deploy to staging:** Copy to `staging/` folder, adjust SKUs
-4. **Set up CI/CD:** Automate deployments with GitHub Actions
+1. **Add more containers:** Edit `dev.tfvars`, add new Cosmos DB containers, re-run `terraform apply`
+2. **Enable Web App:** Set `enable_webapp = true`, configure settings
+3. **Deploy to staging:** Copy config to `infra/envs/staging/`, adjust SKUs
+4. **Set up CI/CD:** Automate deployments with [Azure DevOps Pipelines](AZURE-DEVOPS-SETUP.md)
 5. **Monitor costs:** Set up Azure Cost Management alerts
 
 ---

@@ -154,6 +154,12 @@ variable "private_endpoint_subnet_id" {
   default     = null
 }
 
+variable "vnet_id" {
+  description = "VNet ID for private DNS zone linking (required for PE DNS resolution)"
+  type        = string
+  default     = null
+}
+
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)

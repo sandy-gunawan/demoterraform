@@ -56,9 +56,8 @@ Infrastructure Needs:
   ☐ App Service
   ☑️ Cosmos DB
   ☑️ Key Vault
-  ☐ Redis Cache
-  ☐ Service Bus
-  ☐ Front Door
+  ☐ Container Apps
+  ☐ Web App
 
 Cosmos DB Requirements:
   - Database Name: ecommerce-db
@@ -96,7 +95,7 @@ Platform team checks:
    ```hcl
    # Feature Toggles
    enable_aks              = true
-   enable_cosmos_db        = true
+   enable_cosmosdb        = true
    enable_key_vault        = true
    ```
 
@@ -125,7 +124,7 @@ Platform team checks:
 
 3. **Run deployment**:
    ```bash
-   cd environments/dev/3-workloads
+   cd infra/envs/dev
    terraform init
    terraform plan -var-file="dev.tfvars"
    terraform apply -var-file="dev.tfvars"
@@ -177,19 +176,16 @@ App teams must complete:
 ```
 environments/
 ├── dev-app-ecommerce/        ← E-commerce team owns
-│   ├── 3-workloads/
-│   │   ├── main.tf           ← App team edits
-│   │   ├── dev.tfvars        ← App team edits
-│   │   ├── variables.tf
-│   │   └── backend.tf
-│   └── README.md
+│   ├── main.tf               ← App team edits
+│   ├── dev.tfvars             ← App team edits
+│   ├── variables.tf
+│   └── backend.tf
 ├── dev-app-crm/              ← CRM team owns
-│   └── 3-workloads/
-│       ├── main.tf           ← CRM team edits
-│       └── dev.tfvars        ← CRM team edits
+│   ├── main.tf               ← CRM team edits
+│   └── dev.tfvars             ← CRM team edits
 └── dev-shared/               ← Platform team owns
-    ├── 1-global/
-    └── 2-landing-zone/
+    └── main.tf               ← Landing Zone
+```
 ```
 
 ---
@@ -389,8 +385,8 @@ terraform force-unlock <LOCK_ID>
 terraform version
 
 # Required versions in versions.tf:
-# Terraform: >= 1.6.0
-# AzureRM: >= 3.80.0
+# Terraform: >= 1.5.0
+# AzureRM: ~> 3.80
 
 # Upgrade Terraform
 choco upgrade terraform  # Windows

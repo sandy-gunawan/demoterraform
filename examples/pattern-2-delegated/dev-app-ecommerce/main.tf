@@ -55,11 +55,11 @@ data "azurerm_subnet" "aks" {
 # ============================================================================
 
 module "naming" {
-  source = "../../../_shared/naming"
+  source = "../../../infra/modules/_shared"
   
-  company_name = var.company_name
+  project_name = "${var.company_name}-${var.workload}"
   environment  = var.environment
-  workload     = var.workload
+  location     = var.location
 }
 
 # ============================================================================

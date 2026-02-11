@@ -1,0 +1,88 @@
+# Infracost Template - Reusable Cost Estimation
+# Generates cloud cost estimates for Terraform changes
+# Requires: INFRACOST_API_KEY variable (free at https://www.infracost.io/)
+
+parameters:
+  - name: workingDirectory
+    type: string
+  - name: terraformVersion
+    type: string
+    default: '1.5.7'
+  - name: serviceConnection
+    type: string
+  - name: environment
+    type: string
+    default: 'dev'
+  - name: varFile
+    type: string
+    default: ''
+
+steps:
+  - task: TerraformInstaller@0
+    displayName: 'Install Terraform ${{ parameters.terraformVersion }}'
+    inputs:
+      terraformVersion: ${{ parameters.terraformVersion }}
+
+  - task: AzureCLI@2
+    displayName: 'Terraform Init (for Infracost)'
+    inputs:
+      azureSubscription: ${{ parameters.serviceConnection }}
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      addSpnToEnvironment: true
+      workingDirectory: ${{ parameters.workingDirectory }}
+      inlineScript: |
+        export ARM_CLIENT_ID=$servicePrincipalId
+        export ARM_TENANT_ID=$tenantId
+        export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+        export ARM_USE_OIDC=true
+        terraform init -backend=false -input=false
+
+  - task: Bash@3
+    displayName: 'Install Infracost'
+    inputs:
+      targetType: 'inline'
+      script: |
+        curl -fsSL https://raw.githubusercontent.com/infracost/infracost/master/scripts/install.sh | sh
+
+  - task: Bash@3
+    displayName: 'Run Infracost Breakdown'
+    env:
+      INFRACOST_API_KEY: $(INFRACOST_API_KEY)
+    inputs:
+      targetType: 'inline'
+      script: |
+        if [ -z "$INFRACOST_API_KEY" ]; then
+          echo "##vso[task.logissue type=warning]INFRACOST_API_KEY not set — skipping cost estimation"
+          echo "Get a free API key at https://www.infracost.io/docs/"
+          exit 0
+        fi
+
+        echo "Running Infracost for environment: ${{ parameters.environment }}"
+
+        infracost breakdown \
+          --path ${{ parameters.workingDirectory }} \
+          --format json \
+          --out-file $(Build.ArtifactStagingDirectory)/infracost-${{ parameters.environment }}.json
+
+        # Human-readable table
+        infracost output \
+          --path $(Build.ArtifactStagingDirectory)/infracost-${{ parameters.environment }}.json \
+          --format table
+
+        # Generate markdown for PR comment
+        infracost output \
+          --path $(Build.ArtifactStagingDirectory)/infracost-${{ parameters.environment }}.json \
+          --format github-comment \
+          --out-file $(Build.ArtifactStagingDirectory)/infracost-${{ parameters.environment }}.md
+
+        echo ""
+        echo "✓ Cost estimation complete for ${{ parameters.environment }}"
+
+  - task: PublishPipelineArtifact@1
+    displayName: 'Publish Infracost Report'
+    condition: succeededOrFailed()
+    inputs:
+      targetPath: '$(Build.ArtifactStagingDirectory)'
+      artifact: 'infracost-report-${{ parameters.environment }}'
+      publishLocation: 'pipeline'

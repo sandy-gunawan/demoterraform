@@ -50,7 +50,7 @@ A standardized, automated approach to managing Azure cloud infrastructure that e
 
 #### Development Environment
 **Purpose**: Developer testing and feature development  
-**Monthly Cost**: $200 - $500  
+**Monthly Cost**: $100 - $300  
 **Key Resources**:
 - Small AKS cluster (1-2 nodes)
 - Single-region Cosmos DB
@@ -112,27 +112,50 @@ Development → Staging → Production
 
 ## Supported Azure Services
 
-The framework currently supports:
+The framework currently supports **10 modules** covering compute, data, networking, and security:
 
+### Compute (Where Code Runs)
 1. **Azure Kubernetes Service (AKS)** - Container orchestration
    - **Use For**: Microservices, containerized applications
    - **Business Value**: Flexible, scalable application platform
 
-2. **Azure Cosmos DB** - Global database service
+2. **Azure Container Apps** - Serverless containers
+   - **Use For**: Microservices, event-driven applications
+   - **Business Value**: Simplified container management, scale-to-zero
+
+3. **Azure App Service (Web App)** - Managed web hosting
+   - **Use For**: Web applications, APIs, mobile backends
+   - **Business Value**: Fast deployment, built-in scaling
+
+### Data & Storage
+4. **Azure Cosmos DB** - Global NoSQL database
    - **Use For**: User data, chat history, product catalogs, IoT data
    - **Business Value**: Fast, globally distributed data access
 
-3. **Azure Virtual Networks** - Network infrastructure
+5. **Azure SQL Database** - Managed relational database
+   - **Use For**: Structured business data, transactional workloads
+   - **Business Value**: Enterprise-grade RDBMS with built-in HA
+
+6. **Azure PostgreSQL** - Managed open-source database
+   - **Use For**: Applications requiring PostgreSQL compatibility
+   - **Business Value**: Open-source, no vendor lock-in, zone-redundant
+
+7. **Azure Storage Account** - Blob, file, table, and queue storage
+   - **Use For**: File storage, backups, static content, data lakes
+   - **Business Value**: Durable, highly available, cost-effective
+
+### Networking & Security
+8. **Azure Virtual Networks** - Network infrastructure
    - **Use For**: Secure connectivity between services
    - **Business Value**: Network isolation and security
 
-4. **Azure Container Apps** - Serverless containers
-   - **Use For**: Microservices, event-driven applications
-   - **Business Value**: Simplified container management
-
-5. **Azure Key Vault** - Secrets management
+9. **Azure Key Vault** - Secrets management
    - **Use For**: Storing passwords, keys, certificates
    - **Business Value**: Secure credential management
+
+10. **Landing Zone** - Shared foundation (VNet, Subnets, NSGs, Log Analytics)
+    - **Use For**: Consistent base infrastructure per environment
+    - **Business Value**: Governance, standardization, central monitoring
 
 Additional services can be added as needed using the same framework patterns.
 
@@ -305,7 +328,7 @@ All infrastructure changes follow this process:
 ### Documentation
 - [Technical Documentation](../technical/README.md) - Detailed technical guide
 - [AKS Example](../../examples/aks-application/README.md) - Working application example
-- [Landing Zone Example](../../examples/landing-zone/README.md) - Multi-service deployment
+- [Enterprise Hub-Spoke Example](../../examples/enterprise-hub-spoke/README.md) - Multi-network deployment
 
 ### Training
 - Framework Overview (1 hour) - For all stakeholders
