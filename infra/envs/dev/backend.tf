@@ -43,6 +43,6 @@ terraform {
     key = "dev.terraform.tfstate"
 
     # Optional: Use Azure AD authentication instead of access keys
-    # use_azuread_auth = true
+    use_azuread_auth = true
   }
 }
