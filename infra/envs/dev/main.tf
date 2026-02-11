@@ -208,6 +208,7 @@ module "cosmosdb" {
   enable_multiple_write_locations = false
   public_network_access_enabled   = true  # Public access OK for dev
   backup_type                     = "Periodic"
+  backup_storage_redundancy       = var.cosmosdb_backup_storage_redundancy  # Use variable for regional support
 
   tags = module.global_standards.common_tags
 }

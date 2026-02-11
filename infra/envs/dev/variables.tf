@@ -204,3 +204,9 @@ variable "cosmosdb_containers" {
   }))
   default = {}
 }
+
+variable "cosmosdb_backup_storage_redundancy" {
+  description = "Cosmos DB backup storage redundancy (Geo, Local, Zone) - Not all regions support Geo"
+  type        = string
+  default     = "Local"  # Indonesia Central doesn't support Geo-redundant backup
+}

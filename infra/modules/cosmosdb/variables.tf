@@ -87,9 +87,9 @@ variable "backup_retention_in_hours" {
 }
 
 variable "backup_storage_redundancy" {
-  description = "Backup storage redundancy (Geo, Local, Zone)"
+  description = "Backup storage redundancy (Geo, Local, Zone) - Not all regions support all types"
   type        = string
-  default     = "Geo"
+  default     = "Local"  # Changed from Geo - more regions support Local
 }
 
 variable "enable_automatic_failover" {
