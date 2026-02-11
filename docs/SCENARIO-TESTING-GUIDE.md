@@ -2399,6 +2399,64 @@ terraform output webapp_url
 terraform output aks_kubeconfig_command
 ```
 
+**Q: Why do I configure Cosmos DB containers in `dev.tfvars` and not in the `modules/cosmosdb/` folder?**  
+**A:** This is a core Terraform best practice called **separation of concerns**:
+
+**Architecture Pattern:**
+```
+┌─────────────────────────────────────┐
+│ infra/modules/cosmosdb/             │
+│ (REUSABLE TEMPLATE)                 │
+│                                     │
+│ Defines HOW to create Cosmos DB    │
+│ - Generic, no hardcoded values     │
+│ - Used by all environments         │
+└─────────────────────────────────────┘
+                ↑
+                │ receives values
+                ↓
+┌─────────────────────────────────────┐
+│ infra/envs/dev/dev.tfvars           │
+│ (ENVIRONMENT-SPECIFIC CONFIG)       │
+│                                     │
+│ Defines WHAT to create              │
+│ - Specific to dev environment       │
+│ - Different from prod config        │
+└─────────────────────────────────────┘
+```
+
+**Why this is better:**
+
+1. **Reusability** - Same module works for all environments:
+   ```hcl
+   # Dev: Small and cheap
+   cosmosdb_containers = {
+     "items" = { autoscale_max_throughput = 1000 }
+   }
+   
+   # Prod: Larger and more containers
+   cosmosdb_containers = {
+     "items" = { autoscale_max_throughput = 10000 }
+     "audit" = { autoscale_max_throughput = 2000 }
+   }
+   ```
+
+2. **Flexibility** - Different needs per environment:
+   | Environment | Containers | Throughput | Cost |
+   |-------------|-----------|------------|------|
+   | Dev | 1 | 1000 RU/s | $48/mo |
+   | Prod | 3 | 15000 RU/s | $360/mo |
+
+3. **Separation of concerns**:
+   - **Module's job:** "I know HOW to create Cosmos DB"
+   - **Environment's job:** "I know WHAT config I need"
+
+**Think of it like:**
+- **Modules** = Kitchen (can cook anything)
+- **Tfvars** = Recipe (what to cook today)
+
+You change the recipe (tfvars), not rebuild the kitchen (module) for each meal!
+
 ---
 
 ### Troubleshooting FAQs
