@@ -168,5 +168,39 @@ variable "aks_node_count" {
 variable "aks_node_size" {
   description = "AKS node VM size"
   type        = string
-  default     = "Standard_B2s"  # Small for dev
+  default     = "Standard_D8ds_v5"  # Available in indonesiacentral
+}
+
+# =============================================================================
+# COSMOS DB CONFIGURATION
+# Only used when enable_cosmosdb = true
+# =============================================================================
+
+variable "cosmosdb_account_name" {
+  description = "Cosmos DB account name (must be globally unique, lowercase, no hyphens)"
+  type        = string
+  default     = ""
+}
+
+variable "cosmosdb_consistency_level" {
+  description = "Cosmos DB consistency level (Eventual, Session, BoundedStaleness, Strong, ConsistentPrefix)"
+  type        = string
+  default     = "Session"
+}
+
+variable "cosmosdb_database_name" {
+  description = "Cosmos DB SQL database name"
+  type        = string
+  default     = "mydb"
+}
+
+variable "cosmosdb_containers" {
+  description = "Map of Cosmos DB containers to create"
+  type = map(object({
+    partition_key_path       = string
+    partition_key_version    = optional(number, 2)
+    autoscale_max_throughput = optional(number)
+    throughput               = optional(number)
+  }))
+  default = {}
 }

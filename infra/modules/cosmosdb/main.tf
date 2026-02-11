@@ -49,11 +49,11 @@ resource "azurerm_cosmosdb_account" "db" {
     storage_redundancy  = var.backup_storage_redundancy
   }
 
-  # Enable automatic failover
-  enable_automatic_failover = var.enable_automatic_failover
+  # Enable automatic failover (updated to new argument name)
+  automatic_failover_enabled = var.enable_automatic_failover
 
-  # Enable multiple write locations for production
-  enable_multiple_write_locations = var.enable_multiple_write_locations
+  # Enable multiple write locations for production (updated to new argument name)
+  multiple_write_locations_enabled = var.enable_multiple_write_locations
 
   # Advanced threat protection
   local_authentication_disabled = var.local_authentication_disabled
