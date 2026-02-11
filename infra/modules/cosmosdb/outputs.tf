@@ -14,9 +14,27 @@ output "cosmosdb_primary_key" {
   sensitive   = true
 }
 
-output "cosmosdb_connection_strings" {
-  description = "Cosmos DB connection strings"
-  value       = azurerm_cosmosdb_account.db.connection_strings
+output "cosmosdb_primary_sql_connection_string" {
+  description = "Cosmos DB primary SQL connection string"
+  value       = azurerm_cosmosdb_account.db.primary_sql_connection_string
+  sensitive   = true
+}
+
+output "cosmosdb_secondary_sql_connection_string" {
+  description = "Cosmos DB secondary SQL connection string"
+  value       = azurerm_cosmosdb_account.db.secondary_sql_connection_string
+  sensitive   = true
+}
+
+output "cosmosdb_primary_readonly_sql_connection_string" {
+  description = "Cosmos DB primary readonly SQL connection string"
+  value       = azurerm_cosmosdb_account.db.primary_readonly_sql_connection_string
+  sensitive   = true
+}
+
+output "cosmosdb_secondary_readonly_sql_connection_string" {
+  description = "Cosmos DB secondary readonly SQL connection string"
+  value       = azurerm_cosmosdb_account.db.secondary_readonly_sql_connection_string
   sensitive   = true
 }
 

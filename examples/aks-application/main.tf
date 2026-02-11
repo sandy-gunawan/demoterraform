@@ -220,7 +220,7 @@ resource "azurerm_key_vault" "app" {
 # Store Cosmos DB connection string in Key Vault
 resource "azurerm_key_vault_secret" "cosmosdb_connection" {
   name         = "cosmosdb-connection-string"
-  value        = module.cosmosdb.cosmosdb_connection_strings[0]
+  value        = module.cosmosdb.cosmosdb_primary_sql_connection_string
   key_vault_id = azurerm_key_vault.app.id
 
   depends_on = [azurerm_key_vault.app]
