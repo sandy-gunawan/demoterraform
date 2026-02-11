@@ -21,7 +21,7 @@ variable "dns_prefix" {
 variable "kubernetes_version" {
   description = "Kubernetes version"
   type        = string
-  default     = "1.29.2"
+  default     = "1.34.2"
 }
 
 # Simplified node configuration for environments
@@ -34,7 +34,7 @@ variable "node_count" {
 variable "vm_size" {
   description = "VM size for nodes"
   type        = string
-  default     = "Standard_D2s_v3"
+  default     = "Standard_D8ds_v5"
 }
 
 variable "enable_auto_scaling" {
