@@ -1,8 +1,8 @@
-# Terraform Framework - Client Demo Documentation
+# Terraform Framework — Client Demo Documentation
 
 ## Document Index
 
-This documentation is designed to explain the **Enterprise Terraform Framework for Azure** to clients. It covers everything from basic concepts to advanced multi-team scenarios.
+This documentation explains the **Enterprise Terraform Framework for Azure** to clients. It covers basic concepts through to advanced multi-team deployment patterns.
 
 **Audience**: Client stakeholders, developers, and DevOps engineers who are new to Terraform and Azure DevOps.
 
@@ -12,23 +12,28 @@ This documentation is designed to explain the **Enterprise Terraform Framework f
 
 | # | Document | Description | Who Should Read |
 |---|----------|-------------|-----------------|
-| 01 | [Framework Overview](01-FRAMEWORK-OVERVIEW.md) | What this framework is, why it exists, and how it solves the problem of inconsistent Terraform across teams | Everyone |
-| 02 | [Terraform Basics for Beginners](02-TERRAFORM-BASICS.md) | What each Terraform file does, how files connect to each other, what happens when you run `terraform apply` | Developers new to Terraform |
-| 03 | [How Files Connect - The Big Picture](03-HOW-FILES-CONNECT.md) | Deep dive into how `global/`, `modules/`, `envs/`, and `examples/` interact with each other, with diagrams | Developers, DevOps Engineers |
-| 04 | [Pattern 1 vs Pattern 2 Explained](04-PATTERN1-VS-PATTERN2.md) | Centralized vs Delegated patterns - when to use which, advantages, disadvantages, and comparison table | Everyone |
-| 05 | [Demo Scenario - Step by Step](05-DEMO-SCENARIO-STEP-BY-STEP.md) | Complete walkthrough: Create AKS, CosmosDB, ContainerApp, PostgreSQL across multiple teams | Everyone (main demo doc) |
-| 06 | [Mermaid Diagrams Collection](06-DIAGRAMS.md) | All architecture diagrams, flow diagrams, and team responsibility diagrams | Everyone |
+| 01 | [Framework Overview](01-FRAMEWORK-OVERVIEW.md) | What this framework is, why it exists, house-building analogy, feature toggles | Everyone |
+| 02 | [Terraform Basics for Beginners](02-TERRAFORM-BASICS.md) | What each Terraform file does, how they connect, what happens when you run `terraform apply` | Developers new to Terraform |
+| 03 | [How Files Connect — The Big Picture](03-HOW-FILES-CONNECT.md) | How `global/`, `modules/`, `envs/`, and `examples/` interact with each other | Developers, DevOps Engineers |
+| 04 | [Pattern 1 Demo — Centralized](04-PATTERN1-DEMO.md) | **Standalone test case**: Platform team deploys all resources with feature toggles | Everyone (main demo #1) |
+| 05 | [Pattern 2 Demo — Delegated](05-PATTERN2-DEMO.md) | **Standalone test case**: Application teams deploy independently with own state files | Everyone (main demo #2) |
+| 06 | [Mermaid Diagrams Collection](06-DIAGRAMS.md) | Architecture diagrams, flow diagrams, team responsibility charts | Everyone |
 
 ---
 
 ## How to Use This Documentation
 
-1. **Start with Document 01** to understand the "why" behind this framework
-2. **Read Document 02** if you are new to Terraform (highly recommended)
-3. **Read Document 03** to understand how all the files work together
-4. **Read Document 04** to understand the two deployment patterns
-5. **Follow Document 05** for the live demo walkthrough
-6. **Reference Document 06** for diagrams you can show during presentations
+1. **Start with 01** → Understand the "why" behind this framework
+2. **Read 02** if new to Terraform → Learn what each file does
+3. **Read 03** to see how all files connect together
+4. **Demo 04** → Pattern 1: Centralized deployment (can run as CI/CD test case)
+5. **Demo 05** → Pattern 2: Delegated per-team deployment (can run as CI/CD test case)
+6. **Reference 06** for diagrams during presentations
+
+### For CI/CD Demo
+
+- **Pattern 1 test case**: Document 04 → `cd infra/envs/dev && terraform validate && terraform plan`
+- **Pattern 2 test case**: Document 05 → `cd examples/pattern-2-delegated/dev-app-crm && terraform validate`
 
 ---
 

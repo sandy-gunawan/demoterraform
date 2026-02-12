@@ -45,13 +45,14 @@ locals {
 
   # Location abbreviations (for storage accounts with length limits)
   location_short = {
-    eastus        = "eus"
-    westus        = "wus"
-    centralus     = "cus"
-    westeurope    = "weu"
-    northeurope   = "neu"
-    southeastasia = "sea" # Singapore - best for Indonesia
-    eastasia      = "ea"
+    eastus           = "eus"
+    westus           = "wus"
+    centralus        = "cus"
+    westeurope       = "weu"
+    northeurope      = "neu"
+    southeastasia    = "sea"
+    indonesiacentral = "idc" # Jakarta - Indonesia region
+    eastasia         = "ea"
   }
 }
 
@@ -77,9 +78,9 @@ variable "environment" {
 }
 
 variable "location" {
-  description = "Azure region (use southeastasia for Indonesia - closest full-featured region)"
+  description = "Azure region (use indonesiacentral for Indonesia - Jakarta datacenter)"
   type        = string
-  default     = "southeastasia"
+  default     = "indonesiacentral"
 }
 
 variable "cost_center" {

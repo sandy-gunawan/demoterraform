@@ -6,7 +6,7 @@ variable "organization_name" {
 variable "location" {
   description = "Primary Azure region"
   type        = string
-  default     = "southeastasia"
+  default     = "indonesiacentral"
 }
 
 variable "secondary_location" {

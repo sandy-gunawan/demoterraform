@@ -33,17 +33,18 @@ variable "location" {
 locals {
   # Short region names (for length-limited resources)
   region_short = {
-    "eastus"        = "eus"
-    "eastus2"       = "eus2"
-    "westus"        = "wus"
-    "westus2"       = "wus2"
-    "westeurope"    = "weu"
-    "northeurope"   = "neu"
-    "southeastasia" = "sea"
-    "australiaeast" = "aue"
-    "centralus"     = "cus"
-    "japaneast"     = "jpe"
-    "uksouth"       = "uks"
+    "eastus"           = "eus"
+    "eastus2"          = "eus2"
+    "westus"           = "wus"
+    "westus2"          = "wus2"
+    "westeurope"       = "weu"
+    "northeurope"      = "neu"
+    "southeastasia"    = "sea"
+    "indonesiacentral" = "idc"
+    "australiaeast"    = "aue"
+    "centralus"        = "cus"
+    "japaneast"        = "jpe"
+    "uksouth"          = "uks"
   }
 
   # Environment short names

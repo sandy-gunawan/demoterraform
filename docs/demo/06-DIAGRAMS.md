@@ -490,4 +490,4 @@ Mermaid is supported in GitHub markdown files natively.
 
 ---
 
-*Previous: [05 - Demo Scenario Step by Step](05-DEMO-SCENARIO-STEP-BY-STEP.md)* | *Back to: [00 - Document Index](00-DOCUMENT-INDEX.md)*
+*Previous: [05 - Pattern 2 Demo](05-PATTERN2-DEMO.md)* | *Back to: [00 - Document Index](00-DOCUMENT-INDEX.md)*

@@ -222,14 +222,14 @@ cd infra/envs/dev
 organization_name = "contoso"   # ← Your organization name (lowercase, no spaces)
 environment       = "dev"       # ← Always "dev" for dev environment
 project_name      = "tasks"     # ← Your app/project name (lowercase, no spaces)
-location          = "southeastasia"    # ← Azure region (from your form)
+location          = "indonesiacentral"    # ← Azure region (from your form)
 ```
 
 **Where each value comes from:**
 - `organization_name`: Your organization (ask platform team if unsure)
 - `environment`: Fixed as `dev` (this file is for dev environment)
 - `project_name`: Your application name - keep it short and descriptive
-- `location`: Azure region - common options: `southeastasia`, `eastasia`, `westeurope`
+- `location`: Azure region - common options: `indonesiacentral`, `eastasia`, `westeurope`
 
 ---
 
@@ -411,7 +411,7 @@ Your final `dev.tfvars` should look like this:
 organization_name = "contoso"
 project_name      = "tasks"
 environment       = "dev"
-location          = "southeastasia"
+location          = "indonesiacentral"
 
 # ----------------------------------------------------------------------------
 # Tags

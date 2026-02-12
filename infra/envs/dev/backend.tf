@@ -20,13 +20,13 @@
 # SETUP INSTRUCTIONS (Platform team runs this ONCE):
 #
 #   # Create resource group for state storage
-#   az group create --name contoso-tfstate-rg --location southeastasia
+#   az group create --name contoso-tfstate-rg --location indonesiacentral
 #
 #   # Create storage account (name must be globally unique!)
 #   az storage account create \
 #     --name stcontosotfstate001 \
 #     --resource-group contoso-tfstate-rg \
-#     --location southeastasia \
+#     --location indonesiacentral \
 #     --sku Standard_GRS
 #
 #   # Create container

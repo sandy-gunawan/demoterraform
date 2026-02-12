@@ -10,12 +10,12 @@ All Azure services in the framework have been updated to use **Southeast Asia (S
 
 ### 1. Global Configuration
 **File:** `infra/global/locals.tf`
-- ✅ Default location changed: `eastus` → `southeastasia`
+- ✅ Default location changed: `eastus` → `indonesiacentral`
 - ✅ Added comment: "Singapore - best for Indonesia"
 
 ### 2. Development Environment
 **File:** `infra/envs/dev/dev.tfvars`
-- ✅ Location: `eastus` → `southeastasia`
+- ✅ Location: `eastus` → `indonesiacentral`
 - ✅ AKS node size: `Standard_D8ds_v5` → `Standard_D2s_v3` (2 vCPU, 8GB RAM)
   - **Reason:** D2s_v3 is minimal but functional, widely available, cheaper (~$70/month vs ~$280/month)
   - **Note:** D8ds_v5 was overkill for dev environment
@@ -26,13 +26,13 @@ All Azure services in the framework have been updated to use **Southeast Asia (S
 - `infra/envs/staging/variables.tf`
 
 **Changes:**
-- ✅ Location: `eastus` → `southeastasia`
+- ✅ Location: `eastus` → `indonesiacentral`
 - ✅ AKS node size: `Standard_D4ds_v5` → `Standard_D4s_v3` (4 vCPU, 16GB RAM)
   - **Reason:** D4s_v3 is production-like, widely available, proven reliability
 
 ### 4. Production Environment
 **File:** `infra/envs/prod/prod.tfvars`
-- ✅ Location: `eastus` → `southeastasia`
+- ✅ Location: `eastus` → `indonesiacentral`
 - ✅ AKS node size: Already set to `Standard_D4s_v3` ✓ (no change needed)
   - **Good choice:** Production-grade, reliable, available in SE Asia
 
@@ -42,7 +42,7 @@ All Azure services in the framework have been updated to use **Southeast Asia (S
 - `examples/pattern-2-delegated/dev-app-crm/variables.tf`
 
 **Changes:**
-- ✅ Location: `eastus` → `southeastasia`
+- ✅ Location: `eastus` → `indonesiacentral`
 - ✅ Added comment about Indonesia proximity
 
 ### 6. Pattern 2 Examples - E-commerce App
@@ -51,7 +51,7 @@ All Azure services in the framework have been updated to use **Southeast Asia (S
 - `examples/pattern-2-delegated/dev-app-ecommerce/variables.tf`
 
 **Changes:**
-- ✅ Location: `eastus` → `southeastasia`
+- ✅ Location: `eastus` → `indonesiacentral`
 - ✅ Added comment about Indonesia proximity
 
 ### 7. New Documentation
@@ -135,13 +135,13 @@ Prod:     Standard_D4s_v3   = ~$140/month per node  ✅ No change
 ### 1. Verify Region Availability
 ```bash
 # Check AKS versions in Southeast Asia
-az aks get-versions --location southeastasia --output table
+az aks get-versions --location indonesiacentral --output table
 
 # Check VM sizes available
-az vm list-sizes --location southeastasia --output table | grep "Standard_D"
+az vm list-sizes --location indonesiacentral --output table | grep "Standard_D"
 
 # Check PostgreSQL SKUs
-az postgres flexible-server list-skus --location southeastasia --output table
+az postgres flexible-server list-skus --location indonesiacentral --output table
 ```
 
 ### 2. Test Deployment (Dev Environment)
@@ -155,7 +155,7 @@ terraform init -reconfigure
 terraform plan -var-file="dev.tfvars"
 
 # Expected changes:
-# - Location change from eastus to southeastasia
+# - Location change from eastus to indonesiacentral
 # - VM size changes from D8ds_v5 to D2s_v3
 
 # Apply (when ready)
@@ -172,7 +172,7 @@ ping eastus.cloudapp.azure.com
 # Result: ~220-250ms
 
 # After (Southeast Asia)
-ping southeastasia.cloudapp.azure.com  
+ping indonesiacentral.cloudapp.azure.com  
 # Result: ~15-25ms ✅
 ```
 
@@ -218,7 +218,7 @@ The Terraform state storage (`stcontosotfstate001`) should ALSO be in Southeast 
 az storage account create \
   --name stcontosotfstate001 \
   --resource-group contoso-tfstate-rg \
-  --location southeastasia \
+  --location indonesiacentral \
   --sku Standard_LRS
 ```
 
@@ -246,7 +246,7 @@ For disaster recovery, consider:
 
 Before deploying to production:
 
-- [ ] All `.tfvars` files updated to `southeastasia`
+- [ ] All `.tfvars` files updated to `indonesiacentral`
 - [ ] State storage created in Southeast Asia
 - [ ] AKS node sizes appropriate for workload
 - [ ] PostgreSQL SKU matches requirements

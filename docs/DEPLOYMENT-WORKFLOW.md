@@ -89,7 +89,7 @@ Terraform will perform the following actions:
   # azurerm_cosmosdb_account.db[0] will be created
   + resource "azurerm_cosmosdb_account" "db" {
       + name     = "contoso-cosmos-dev"
-      + location = "southeastasia"
+      + location = "indonesiacentral"
       ...
     }
 
@@ -424,7 +424,7 @@ This section shows the complete stack from Global Standards down to Database lev
 │  infra/envs/dev/                                                         │
 │                                                                          │
 │  📦 Resource Group: contoso-rg-dev                                      │
-│  └── Location: southeastasia                                            │
+│  └── Location: indonesiacentral                                            │
 │                                                                          │
 │  🌐 Virtual Network: contoso-vnet-dev (10.1.0.0/16)                      │
 │  ├── Subnet: aks-subnet (10.1.1.0/24)                                  │

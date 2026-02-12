@@ -47,7 +47,7 @@ In Terraform, you'll see these file types over and over. Here's what each one do
 # "I want a resource group"
 resource "azurerm_resource_group" "main" {
   name     = "contoso-rg-dev"
-  location = "southeastasia"
+  location = "indonesiacentral"
 }
 
 # "I want an AKS cluster" (using the module)
@@ -55,7 +55,7 @@ module "aks" {
   source = "../../modules/aks"
   
   cluster_name = "contoso-aks-dev"
-  location     = "southeastasia"
+  location     = "indonesiacentral"
   # ... more configuration
 }
 ```
@@ -98,7 +98,7 @@ variable "aks_node_count" {
 # dev.tfvars - "Here are my answers for development environment"
 
 project_name      = "contoso"
-location          = "southeastasia"
+location          = "indonesiacentral"
 enable_aks        = true       # Yes, I want AKS
 enable_cosmosdb   = true       # Yes, I want database
 aks_node_count    = 1          # Just 1 node for dev
@@ -227,7 +227,7 @@ module "aks" {
   # Parameters (inputs) to the function:
   cluster_name = "contoso-aks-dev"
   node_count   = 1
-  location     = "southeastasia"
+  location     = "indonesiacentral"
 }
 
 # Access the results (return values):

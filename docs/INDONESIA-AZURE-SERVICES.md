@@ -2,7 +2,7 @@
 
 ## Recommended Region: Southeast Asia (Singapore)
 
-**Location Code**: `southeastasia`
+**Location Code**: `indonesiacentral`
 
 Southeast Asia (Singapore) is the recommended Azure region for Indonesia deployments because:
 - ✅ Geographically closest (latency ~10-30ms from Jakarta)
@@ -256,7 +256,7 @@ Here's what the framework now uses by default:
 
 ```hcl
 # Southeast Asia (Singapore) - closest to Indonesia
-location = "southeastasia"
+location = "indonesiacentral"
 
 # AKS - Minimal but functional
 aks_node_size = "Standard_D2s_v3"  # Dev: 2 vCPU, 8 GB
@@ -289,16 +289,16 @@ To verify a service is available in Southeast Asia:
 
 ```bash
 # Check VM sizes
-az vm list-sizes --location southeastasia --output table
+az vm list-sizes --location indonesiacentral --output table
 
 # Check PostgreSQL versions
-az postgres flexible-server list-skus --location southeastasia
+az postgres flexible-server list-skus --location indonesiacentral
 
 # Check Cosmos DB capabilities
 az cosmosdb locations list --output table
 
 # Check AKS versions
-az aks get-versions --location southeastasia --output table
+az aks get-versions --location indonesiacentral --output table
 ```
 
 ---

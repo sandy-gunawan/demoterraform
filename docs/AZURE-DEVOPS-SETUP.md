@@ -128,13 +128,13 @@ Before starting, ensure you have:
    # Create resource group for Terraform state
    az group create \
      --name contoso-tfstate-rg \
-     --location southeastasia
+     --location indonesiacentral
    
    # Create storage account (name must be globally unique)
    az storage account create \
      --name stcontosotfstate001 \
      --resource-group contoso-tfstate-rg \
-     --location southeastasia \
+     --location indonesiacentral \
      --sku Standard_LRS \
      --encryption-services blob
    
@@ -380,7 +380,7 @@ Environments provide **approval gates** for deployments. This ensures no one can
    Edit `infra/envs/dev/dev.tfvars`:
    ```hcl
    project_name = "contoso"
-   location     = "southeastasia"
+   location     = "indonesiacentral"
    tenant_id    = "YOUR_TENANT_ID"
    admin_group_object_ids = ["YOUR_ADMIN_GROUP_ID"]
    ```

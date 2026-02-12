@@ -130,7 +130,7 @@ Terraform is a tool that lets you **describe your infrastructure in code** (file
 # Write this once:
 resource "azurerm_kubernetes_cluster" "aks" {
   name                = "contoso-aks-dev"
-  location            = "southeastasia"
+  location            = "indonesiacentral"
   resource_group_name = "contoso-rg-dev"
   # ... configuration
 }
@@ -151,7 +151,7 @@ module "aks" {
   source = "../../modules/aks"
   
   cluster_name        = "contoso-aks-dev"
-  location            = "southeastasia"
+  location            = "indonesiacentral"
   resource_group_name = "contoso-rg-dev"
   node_count          = 1
   vm_size             = "Standard_D8ds_v5"
@@ -213,21 +213,21 @@ enable_ddos_protection = true   # Protect against attacks
 
 ---
 
-## Indonesia Region Considerations
+## Indonesia Region Configuration
 
-All services in this framework are configured to work in Azure regions available in Indonesia:
+All services in this framework are configured for the **Indonesia Central** (`indonesiacentral`) Azure region — located in Jakarta:
 
 | Service | Region | Notes |
 |---------|--------|-------|
-| AKS | `southeastasia` (Singapore) | Closest region with full AKS support |
-| Cosmos DB | `southeastasia` | Full support, use `Local` backup redundancy |
-| PostgreSQL | `southeastasia` | Flexible Server supported |
-| Container Apps | `southeastasia` | Fully supported |
-| Key Vault | `southeastasia` | Fully supported |
-| Storage Account | `southeastasia` | Use `LRS` or `ZRS` redundancy |
-| App Service | `southeastasia` | Fully supported |
+| AKS | `indonesiacentral` (Jakarta) | Azure Kubernetes Service |
+| Cosmos DB | `indonesiacentral` | Use `Local` backup redundancy |
+| PostgreSQL | `indonesiacentral` | Flexible Server |
+| Container Apps | `indonesiacentral` | Serverless containers |
+| Key Vault | `indonesiacentral` | Secrets management |
+| Storage Account | `indonesiacentral` | Use `LRS` or `ZRS` redundancy |
+| App Service | `indonesiacentral` | Web app hosting |
 
-> **Note**: `indonesiacentral` (Jakarta) is available but has limited services. For a production framework, `southeastasia` (Singapore) provides the most complete service availability while still being close to Indonesia.
+> **Note**: Indonesia Central supports availability zones and is located in Jakarta. For services not yet available in `indonesiacentral`, `southeastasia` (Singapore) can be used as a fallback.
 
 ---
 
@@ -237,8 +237,8 @@ Now that you understand the framework:
 
 1. **Read [Document 02](02-TERRAFORM-BASICS.md)** to understand what each file does
 2. **Read [Document 03](03-HOW-FILES-CONNECT.md)** to see how files connect
-3. **Read [Document 04](04-PATTERN1-VS-PATTERN2.md)** to understand deployment patterns
-4. **Follow [Document 05](05-DEMO-SCENARIO-STEP-BY-STEP.md)** for the live demo
+3. **Demo [Document 04](04-PATTERN1-DEMO.md)** for Pattern 1 centralized deployment
+4. **Demo [Document 05](05-PATTERN2-DEMO.md)** for Pattern 2 delegated deployment
 
 ---
 

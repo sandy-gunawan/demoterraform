@@ -16,7 +16,7 @@
 company_name = "contoso"
 environment  = "dev"
 workload     = "crm"
-location     = "southeastasia" # Singapore - closest to Indonesia
+location     = "indonesiacentral" # Jakarta - Indonesia datacenter region
 
 # ----------------------------------------------------------------------------
 # Tags (for cost tracking and organization)

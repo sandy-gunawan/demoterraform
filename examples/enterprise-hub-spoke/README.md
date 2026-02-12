@@ -112,7 +112,7 @@ Edit `terraform.tfvars`:
 
 ```hcl
 organization_name = "contoso"
-location          = "southeastasia"
+location          = "indonesiacentral"
 tenant_id         = "your-tenant-id"
 
 # Define spoke networks

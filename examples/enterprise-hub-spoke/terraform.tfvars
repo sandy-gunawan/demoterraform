@@ -1,7 +1,7 @@
 # Landing Zone Configuration Values
 
 organization_name  = "contoso"
-location           = "southeastasia"
+location           = "indonesiacentral"
 secondary_location = "eastasia"
 tenant_id          = "12345678-1234-1234-1234-123456789012" # Replace with your tenant ID
 

@@ -205,7 +205,7 @@ Terraform needs a place to store its "state" (a record of what resources exist).
 $RESOURCE_GROUP = "contoso-tfstate-rg"
 $STORAGE_ACCOUNT = "stcontosotfstate001"
 $CONTAINER = "tfstate"
-$LOCATION = "southeastasia"
+$LOCATION = "indonesiacentral"
 
 # Create resource group
 Write-Host "Creating resource group..." -ForegroundColor Green
@@ -350,7 +350,7 @@ code dev.tfvars
 # -----------------------------------------------------------------------------
 organization_name = "contoso"           # ← Company name
 project_name      = "scenariotest"     # ← Keep as-is for testing
-location          = "southeastasia"    # ← Closest to Indonesia
+location          = "indonesiacentral"    # ← Closest to Indonesia
 
 # Azure AD Configuration (IMPORTANT - fill this!)
 tenant_id = "12345678-90ab-cdef-1234-567890abcdef"  # ← PASTE YOUR TENANT ID HERE
@@ -500,7 +500,7 @@ Terraform will perform the following actions:
   # azurerm_resource_group.main will be created
   + resource "azurerm_resource_group" "main" {
       + name     = "scenariotest-rg-dev"
-      + location = "southeastasia"
+      + location = "indonesiacentral"
     }
 
   # module.networking.azurerm_virtual_network.vnet will be created
@@ -1332,7 +1332,7 @@ code prod.tfvars
 # -----------------------------------------------------------------------------
 organization_name = "contoso"           # ← Same as dev
 project_name      = "scenariotest"     # ← Same as dev (different resources due to env)
-location          = "southeastasia"    # ← Same as dev (or choose different region)
+location          = "indonesiacentral"    # ← Same as dev (or choose different region)
 
 # Azure AD Configuration
 tenant_id = "12345678-90ab-cdef-1234-567890abcdef"  # ← PASTE YOUR TENANT ID
@@ -1516,9 +1516,9 @@ az group list --query "[?contains(name, 'scenariotest')].{Name:name, Location:lo
 ```
 Name                     Location
 -----------------------  ----------
-scenariotest-rg-dev      southeastasia
-scenariotest-rg-prod     southeastasia
-contoso-tfstate-rg       southeastasia
+scenariotest-rg-dev      indonesiacentral
+scenariotest-rg-prod     indonesiacentral
+contoso-tfstate-rg       indonesiacentral
 ```
 
 ✅ **Success:** You have TWO separate environments running simultaneously!
@@ -1876,7 +1876,7 @@ $STORAGE_ACCOUNT = "tfstate$(Get-Random -Maximum 999999)"
 Write-Host "New storage account name: $STORAGE_ACCOUNT"
 
 # Retry creating the storage account with the new name
-az storage account create --name $STORAGE_ACCOUNT --resource-group contoso-tfstate-rg --location southeastasia --sku Standard_LRS
+az storage account create --name $STORAGE_ACCOUNT --resource-group contoso-tfstate-rg --location indonesiacentral --sku Standard_LRS
 ```
 
 ---
@@ -2081,7 +2081,7 @@ StatusCode=404, ErrorCode=ContainerNotFound
 az storage account show --name stcontosotfstate001
 
 # If it doesn't exist, recreate it:
-az storage account create --name stcontosotfstate001 --resource-group contoso-tfstate-rg --location southeastasia --sku Standard_LRS
+az storage account create --name stcontosotfstate001 --resource-group contoso-tfstate-rg --location indonesiacentral --sku Standard_LRS
 
 az storage container create --name tfstate --account-name stcontosotfstate001 --auth-mode login
 
@@ -2333,7 +2333,7 @@ az consumption budget create --resource-group scenariotest-rg-dev --name "dev-bu
 ```
 
 **Q: Can I use a different Azure region?**  
-**A:** Yes! Change the `location` variable in `dev.tfvars`. Popular choices: `eastus`, `westus2`, `westeurope`, `southeastasia`.
+**A:** Yes! Change the `location` variable in `dev.tfvars`. Popular choices: `eastus`, `westus2`, `westeurope`, `indonesiacentral`.
 
 ---
 

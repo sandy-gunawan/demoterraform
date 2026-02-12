@@ -11,7 +11,7 @@
 organization_name = "contoso"
 project_name      = "contoso"
 environment       = "dev"
-location          = "southeastasia" # Singapore - closest full-featured region to Indonesia
+location          = "indonesiacentral" # Jakarta - Indonesia datacenter region
 
 # Azure AD Configuration
 # Get your tenant ID: az account show --query tenantId -o tsv

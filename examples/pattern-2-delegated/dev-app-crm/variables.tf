@@ -21,9 +21,9 @@ variable "workload" {
 }
 
 variable "location" {
-  description = "Azure region (southeastasia recommended for Indonesia)"
+  description = "Azure region (indonesiacentral for Indonesia)"
   type        = string
-  default     = "southeastasia"
+  default     = "indonesiacentral"
 }
 
 # ============================================================================

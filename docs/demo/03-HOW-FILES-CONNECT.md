@@ -63,7 +63,7 @@ locals {
     organization = var.organization_name    # e.g., "contoso"
     project      = var.project_name         # e.g., "contoso"
     environment  = var.environment           # e.g., "dev"
-    location     = var.location              # e.g., "southeastasia"
+    location     = var.location              # e.g., "indonesiacentral"
   }
 
   # These patterns are used to name ALL resources:
@@ -498,4 +498,4 @@ App Team (runs independently):
 
 ---
 
-*Previous: [02 - Terraform Basics](02-TERRAFORM-BASICS.md)* | *Next: [04 - Pattern 1 vs Pattern 2 →](04-PATTERN1-VS-PATTERN2.md)*
+*Previous: [02 - Terraform Basics](02-TERRAFORM-BASICS.md)* | *Next: [04 - Pattern 1 Demo →](04-PATTERN1-DEMO.md)*

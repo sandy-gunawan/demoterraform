@@ -4,7 +4,7 @@
 project_name = "contoso"
 app_name     = "ecommerce"
 environment  = "production"
-location     = "southeastasia"
+location     = "indonesiacentral"
 
 # Azure AD Configuration (REQUIRED)
 # Get tenant ID: az account show --query tenantId -o tsv

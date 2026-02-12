@@ -34,8 +34,8 @@ az account set --subscription <subscription-id>
 3. **Configure backend storage** (Optional but recommended)
 ```bash
 # Create storage account for Terraform state
-az group create --name contoso-tfstate-rg --location southeastasia
-az storage account create --name stcontosotfstate001 --resource-group contoso-tfstate-rg --location southeastasia --sku Standard_LRS
+az group create --name contoso-tfstate-rg --location indonesiacentral
+az storage account create --name stcontosotfstate001 --resource-group contoso-tfstate-rg --location indonesiacentral --sku Standard_LRS
 az storage container create --name tfstate --account-name stcontosotfstate001
 ```
 
@@ -126,7 +126,7 @@ module "aks" {
   source = "../../../infra/modules/aks"
 
   cluster_name               = "contoso-aks-prod"
-  location                   = "southeastasia"
+  location                   = "indonesiacentral"
   subnet_id                  = module.networking.subnet_ids["aks-subnet"]
   log_analytics_workspace_id = azurerm_log_analytics_workspace.prod.id
   
@@ -306,7 +306,7 @@ module "landing_zone" {
 
   project_name        = "contoso"
   environment         = "prod"
-  location            = "southeastasia"
+  location            = "indonesiacentral"
   address_space       = ["10.3.0.0/16"]
   enable_nat_gateway  = true
   log_retention_days  = 90
@@ -536,7 +536,7 @@ cd infra/envs/dev  # or staging/prod
 Edit `terraform.tfvars`:
 ```hcl
 project_name = "contoso"
-location     = "southeastasia"
+location     = "indonesiacentral"
 tenant_id    = "your-tenant-id"
 admin_group_object_ids = ["your-admin-group-id"]
 ```

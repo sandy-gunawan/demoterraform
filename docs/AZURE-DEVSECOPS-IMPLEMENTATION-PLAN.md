@@ -162,13 +162,13 @@ az ad sp create-for-rbac \
 # Create dedicated resource group for state (isolated!)
 az group create \
   --name "rg-terraform-state-security" \
-  --location "southeastasia"
+  --location "indonesiacentral"
 
 # Create storage account with MAXIMUM security
 az storage account create \
   --name "stterraformstate001" \
   --resource-group "rg-terraform-state-security" \
-  --location "southeastasia" \
+  --location "indonesiacentral" \
   --sku "Standard_GRS" \
   --min-tls-version "TLS1_2" \
   --allow-blob-public-access false \
@@ -214,7 +214,7 @@ az monitor diagnostic-settings create \
 az keyvault create \
   --name "kv-terraform-cicd-001" \
   --resource-group "rg-terraform-state-security" \
-  --location "southeastasia" \
+  --location "indonesiacentral" \
   --enable-rbac-authorization true \
   --enable-purge-protection true \
   --retention-days 90
@@ -1103,7 +1103,7 @@ STAGE 1: Security Scanning
 │   └── ✅ PASSED: All policies met (5 seconds)
 │       - Required tags present ✅
 │       - Naming convention: aks-ecom-dev ✅
-│       - Region: southeastasia (allowed) ✅
+│       - Region: indonesiacentral (allowed) ✅
 │
 └── 💰 Cost Estimation (Infracost)
     └── ✅ PASSED: $145/month (15 seconds)

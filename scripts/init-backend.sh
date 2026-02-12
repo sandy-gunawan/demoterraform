@@ -16,7 +16,7 @@ echo ""
 RESOURCE_GROUP_NAME="contoso-tfstate-rg"
 STORAGE_ACCOUNT_NAME="stcontosotfstate001"
 CONTAINER_NAME="tfstate"
-LOCATION="southeastasia"
+LOCATION="indonesiacentral"
 SOFT_DELETE_DAYS=90
 
 echo "Configuration:"

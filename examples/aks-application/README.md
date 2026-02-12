@@ -78,7 +78,7 @@ Edit `terraform.tfvars` with your values:
 ```hcl
 project_name = "contoso"
 environment  = "production"
-location     = "southeastasia"
+location     = "indonesiacentral"
 tenant_id    = "your-tenant-id"
 admin_group_object_ids = ["your-admin-group-id"]
 

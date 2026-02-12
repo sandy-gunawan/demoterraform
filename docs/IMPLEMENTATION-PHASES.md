@@ -81,8 +81,8 @@ git push origin main
 ./scripts/init-backend.sh  # or .ps1 for Windows
 
 # Or manually:
-az group create --name contoso-tfstate-rg --location southeastasia
-az storage account create --name stcontosotfstate001 --resource-group contoso-tfstate-rg --location southeastasia --sku Standard_LRS
+az group create --name contoso-tfstate-rg --location indonesiacentral
+az storage account create --name stcontosotfstate001 --resource-group contoso-tfstate-rg --location indonesiacentral --sku Standard_LRS
 az storage container create --name tfstate --account-name stcontosotfstate001
 ```
 
@@ -229,7 +229,7 @@ serviceConnection: "sc-azure-oidc-or-mi"
 # infra/envs/dev/dev.tfvars
 organization_name = "contoso"
 project_name      = "contoso"
-location          = "southeastasia"
+location          = "indonesiacentral"
 tenant_id         = "your-tenant-id"
 cost_center       = "Engineering"
 owner_email       = "devops@contoso.com"

@@ -113,7 +113,7 @@ Without shared state:
 $RESOURCE_GROUP = "contoso-tfstate-rg"
 $STORAGE_ACCOUNT = "stcontosotfstate001"
 $CONTAINER = "tfstate"
-$LOCATION = "southeastasia"
+$LOCATION = "indonesiacentral"
 
 # Create resource group
 az group create --name $RESOURCE_GROUP --location $LOCATION
@@ -189,7 +189,7 @@ Open `infra/envs/dev/dev.tfvars` and customize:
 # Change these to your values
 organization_name = "contoso"          # Your company/org name
 project_name      = "contoso"          # Your project name
-location          = "southeastasia"    # Azure region (closest to Indonesia)
+location          = "indonesiacentral"    # Azure region (closest to Indonesia)
 
 # Get your tenant ID by running: az account show --query tenantId -o tsv
 tenant_id = "12345678-1234-1234-1234-123456789012"  # Your Azure AD tenant
@@ -329,7 +329,7 @@ Terraform will perform the following actions:
   # azurerm_resource_group.dev will be created
   + resource "azurerm_resource_group" "dev" {
       + name     = "contoso-rg-dev"
-      + location = "southeastasia"
+      + location = "indonesiacentral"
     }
 
   # azurerm_virtual_network.vnet will be created
