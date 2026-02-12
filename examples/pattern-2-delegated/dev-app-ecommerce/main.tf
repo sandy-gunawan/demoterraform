@@ -34,10 +34,19 @@ provider "azurerm" {
 # ============================================================================
 # DATA SOURCES - Read Platform team's infrastructure
 # ============================================================================
+# 🎓 NEWBIE NOTE: We DON'T create the VNet here!
+# The Platform team already created it in infra/envs/dev/main.tf (line 172)
+# We just READ it using Terraform data sources below.
+#
+# Think of it like this:
+# - Platform team: Builds the roads (VNet, subnets, security rules)
+# - Your team: Builds the houses (AKS, CosmosDB, Key Vault)
+# ============================================================================
 
 data "azurerm_client_config" "current" {}
 
 # Read E-commerce's dedicated VNet (created by Platform team in Pattern 1)
+# This VNet was created by: infra/envs/dev/main.tf line 172 (module "networking_ecommerce")
 data "azurerm_virtual_network" "ecommerce" {
   name                = "vnet-contoso-dev-ecommerce-001"
   resource_group_name = "contoso-platform-rg-dev"

@@ -1,5 +1,23 @@
 # Development Environment Configuration
 # =============================================================================
+# ⚠️ IMPORTANT FOR NEWBIES: This file creates infrastructure for BOTH patterns!
+#
+# What this file does:
+# 1. Pattern 1 Resources: Shared AKS, CosmosDB, Log Analytics, etc.
+# 2. Pattern 1 VNet: 10.1.0.0/16 (for shared services above)
+# 3. Pattern 2 VNets: 10.2.x (CRM) and 10.3.x (E-commerce) <- YES, Platform creates these!
+#
+# Why Platform creates Pattern 2 VNets?
+# - Governance: Platform enforces networking standards (security, naming, IP ranges)
+# - Reusability: Same networking module used 3 times (don't reinvent the wheel)
+# - Consistency: All VNets follow same patterns
+# - Control: Platform team manages all networking, teams focus on apps
+#
+# Pattern 2 teams DON'T create VNets themselves!
+# They READ these VNets using Terraform data sources (see examples/pattern-2-delegated/)
+#
+# Deploy this FIRST before Pattern 2 teams can deploy their apps!
+# =============================================================================
 # PHILOSOPHY: Simple, cheap, fast iteration
 # - Minimal resources, no expensive security features
 # - Everything still works, just simplified

@@ -34,10 +34,19 @@ provider "azurerm" {
 # ============================================================================
 # DATA SOURCES - Read Platform team's infrastructure
 # ============================================================================
+# 🎓 NEWBIE NOTE: We DON'T create the VNet here!
+# The Platform team already created it in infra/envs/dev/main.tf (line 115)
+# We just READ it using Terraform data sources below.
+#
+# Think of it like this:
+# - Platform team: Builds the roads (VNet, subnets, security rules)
+# - Your team: Builds the houses (App Service, CosmosDB, Key Vault)
+# ============================================================================
 
 data "azurerm_client_config" "current" {}
 
 # Read CRM's dedicated VNet (created by Platform team in Pattern 1)
+# This VNet was created by: infra/envs/dev/main.tf line 115 (module "networking_crm")
 data "azurerm_virtual_network" "crm" {
   name                = "vnet-contoso-dev-crm-001"
   resource_group_name = "contoso-platform-rg-dev"
