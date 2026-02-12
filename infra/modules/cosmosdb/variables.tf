@@ -89,7 +89,7 @@ variable "backup_retention_in_hours" {
 variable "backup_storage_redundancy" {
   description = "Backup storage redundancy (Geo, Local, Zone) - Not all regions support all types"
   type        = string
-  default     = "Local"  # Changed from Geo - more regions support Local
+  default     = "Local" # Changed from Geo - more regions support Local
 }
 
 variable "enable_automatic_failover" {
@@ -113,7 +113,7 @@ variable "local_authentication_disabled" {
 variable "sql_databases" {
   description = "Map of SQL databases to create"
   type = map(object({
-    throughput                = optional(number)
+    throughput               = optional(number)
     autoscale_max_throughput = optional(number)
   }))
   default = {}
@@ -122,16 +122,16 @@ variable "sql_databases" {
 variable "sql_containers" {
   description = "Map of SQL containers to create"
   type = map(object({
-    database_name             = string
-    partition_key_paths       = list(string)
-    partition_key_version     = optional(number, 2)
-    throughput                = optional(number)
+    database_name            = string
+    partition_key_paths      = list(string)
+    partition_key_version    = optional(number, 2)
+    throughput               = optional(number)
     autoscale_max_throughput = optional(number)
-    indexing_mode             = optional(string, "consistent")
-    included_paths            = optional(list(string), ["/*"])
-    excluded_paths            = optional(list(string), [])
-    default_ttl               = optional(number, -1)
-    analytical_storage_ttl    = optional(number)
+    indexing_mode            = optional(string, "consistent")
+    included_paths           = optional(list(string), ["/*"])
+    excluded_paths           = optional(list(string), [])
+    default_ttl              = optional(number, -1)
+    analytical_storage_ttl   = optional(number)
   }))
   default = {}
 }

@@ -42,7 +42,7 @@
 module "networking" {
   source        = "../../modules/networking"
   address_space = ["10.1.0.0/16"]
-  network_name  = "platform-vnet-dev"
+  network_name  = "vnet-contoso-dev-001"
 }
 
 # Line 115 - VNet for CRM team (Pattern 2)

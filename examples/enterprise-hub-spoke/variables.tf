@@ -6,13 +6,13 @@ variable "organization_name" {
 variable "location" {
   description = "Primary Azure region"
   type        = string
-  default     = "eastus"
+  default     = "southeastasia"
 }
 
 variable "secondary_location" {
   description = "Secondary Azure region for geo-redundancy"
   type        = string
-  default     = "westus"
+  default     = "eastasia"
 }
 
 variable "tenant_id" {

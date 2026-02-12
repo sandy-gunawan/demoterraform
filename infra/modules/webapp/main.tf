@@ -27,13 +27,13 @@ resource "azurerm_linux_web_app" "webapp" {
   public_network_access_enabled = var.public_network_access_enabled
 
   site_config {
-    always_on                               = var.always_on
-    http2_enabled                           = var.http2_enabled
-    minimum_tls_version                     = var.minimum_tls_version
-    ftps_state                              = var.ftps_state
-    health_check_path                       = var.health_check_path
-    health_check_eviction_time_in_min      = var.health_check_eviction_time_in_min
-    vnet_route_all_enabled                  = var.vnet_route_all_enabled
+    always_on                         = var.always_on
+    http2_enabled                     = var.http2_enabled
+    minimum_tls_version               = var.minimum_tls_version
+    ftps_state                        = var.ftps_state
+    health_check_path                 = var.health_check_path
+    health_check_eviction_time_in_min = var.health_check_eviction_time_in_min
+    vnet_route_all_enabled            = var.vnet_route_all_enabled
 
     dynamic "application_stack" {
       for_each = var.linux_application_stack != null ? [var.linux_application_stack] : []
@@ -111,23 +111,23 @@ resource "azurerm_windows_web_app" "webapp" {
   public_network_access_enabled = var.public_network_access_enabled
 
   site_config {
-    always_on                          = var.always_on
-    http2_enabled                      = var.http2_enabled
-    minimum_tls_version                = var.minimum_tls_version
-    ftps_state                         = var.ftps_state
-    health_check_path                  = var.health_check_path
+    always_on                         = var.always_on
+    http2_enabled                     = var.http2_enabled
+    minimum_tls_version               = var.minimum_tls_version
+    ftps_state                        = var.ftps_state
+    health_check_path                 = var.health_check_path
     health_check_eviction_time_in_min = var.health_check_eviction_time_in_min
-    vnet_route_all_enabled             = var.vnet_route_all_enabled
+    vnet_route_all_enabled            = var.vnet_route_all_enabled
 
     dynamic "application_stack" {
       for_each = var.windows_application_stack != null ? [var.windows_application_stack] : []
       content {
-        current_stack                = try(application_stack.value.current_stack, null)
-        dotnet_version               = try(application_stack.value.dotnet_version, null)
-        java_version                 = try(application_stack.value.java_version, null)
-        node_version                 = try(application_stack.value.node_version, null)
-        php_version                  = try(application_stack.value.php_version, null)
-        python                       = try(application_stack.value.python, null)
+        current_stack  = try(application_stack.value.current_stack, null)
+        dotnet_version = try(application_stack.value.dotnet_version, null)
+        java_version   = try(application_stack.value.java_version, null)
+        node_version   = try(application_stack.value.node_version, null)
+        php_version    = try(application_stack.value.php_version, null)
+        python         = try(application_stack.value.python, null)
       }
     }
 

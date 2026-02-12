@@ -63,7 +63,7 @@ graph TB
 ```mermaid
 flowchart LR
     subgraph "Input"
-        TFVARS[dev.tfvars<br/>Values:<br/>enable_aks=true<br/>project_name=myapp]
+        TFVARS[dev.tfvars<br/>Values:<br/>enable_aks=true<br/>project_name=contoso]
     end
 
     subgraph "Declaration"
@@ -360,7 +360,7 @@ graph TB
 
 ```mermaid
 graph TB
-    subgraph "Azure Storage Account: tfstatecontosoid"
+    subgraph "Azure Storage Account: stcontosotfstate001"
         subgraph "Container: tfstate"
             S1[dev.terraform.tfstate<br/>Platform + Team Alpha + Team Beta<br/>Pattern 1]
             S2[dev-app-crm.tfstate<br/>CRM Team Only<br/>Pattern 2]
@@ -396,16 +396,16 @@ graph TB
 ```mermaid
 graph TB
     subgraph "Azure Subscription"
-        subgraph "terraform-state-rg"
-            SA[Storage Account<br/>tfstatecontosoid]
+        subgraph "contoso-tfstate-rg"
+            SA[Storage Account<br/>stcontosotfstate001]
         end
 
         subgraph "contoso-platform-rg-dev (Pattern 1)"
-            P1_VNET[VNet: platform-vnet-dev<br/>10.1.0.0/16]
+            P1_VNET[VNet: vnet-contoso-dev-001<br/>10.1.0.0/16]
             P1_AKS_SUB[Subnet: aks-subnet<br/>10.1.1.0/24]
             P1_APP_SUB[Subnet: app-subnet<br/>10.1.2.0/24]
             P1_NSG[NSG: aks-nsg]
-            P1_LOG[Log Analytics:<br/>platform-logs-dev]
+            P1_LOG[Log Analytics:<br/>contoso-logs-dev]
             P1_KV[Key Vault:<br/>platformkvdev]
             P1_AKS[AKS: platform-aks-dev<br/>1x Standard_D8ds_v5]
             P1_CDB[CosmosDB:<br/>platformcosmosdev]

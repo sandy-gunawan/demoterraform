@@ -33,17 +33,17 @@ variable "location" {
 locals {
   # Short region names (for length-limited resources)
   region_short = {
-    "eastus"         = "eus"
-    "eastus2"        = "eus2"
-    "westus"         = "wus"
-    "westus2"        = "wus2"
-    "westeurope"     = "weu"
-    "northeurope"    = "neu"
-    "southeastasia"  = "sea"
-    "australiaeast"  = "aue"
-    "centralus"      = "cus"
-    "japaneast"      = "jpe"
-    "uksouth"        = "uks"
+    "eastus"        = "eus"
+    "eastus2"       = "eus2"
+    "westus"        = "wus"
+    "westus2"       = "wus2"
+    "westeurope"    = "weu"
+    "northeurope"   = "neu"
+    "southeastasia" = "sea"
+    "australiaeast" = "aue"
+    "centralus"     = "cus"
+    "japaneast"     = "jpe"
+    "uksouth"       = "uks"
   }
 
   # Environment short names
@@ -70,30 +70,30 @@ locals {
     resource_group_shared = "${local.prefix}-shared-rg-${local.region}"
 
     # Networking
-    vnet                  = "${local.prefix}-vnet-${local.region}"
-    subnet_aks            = "${local.prefix}-aks-snet"
-    subnet_app            = "${local.prefix}-app-snet"
-    subnet_data           = "${local.prefix}-data-snet"
-    subnet_pe             = "${local.prefix}-pe-snet"
-    nsg                   = "${local.prefix}-nsg-${local.region}"
-    nat_gateway           = "${local.prefix}-natgw-${local.region}"
+    vnet        = "${local.prefix}-vnet-${local.region}"
+    subnet_aks  = "${local.prefix}-aks-snet"
+    subnet_app  = "${local.prefix}-app-snet"
+    subnet_data = "${local.prefix}-data-snet"
+    subnet_pe   = "${local.prefix}-pe-snet"
+    nsg         = "${local.prefix}-nsg-${local.region}"
+    nat_gateway = "${local.prefix}-natgw-${local.region}"
 
     # Compute
-    aks_cluster           = "${local.prefix}-aks-${local.region}"
-    container_app_env     = "${local.prefix}-cae-${local.region}"
-    app_service_plan      = "${local.prefix}-asp-${local.region}"
-    webapp                = "${local.prefix}-app-${local.region}"
-    function_app          = "${local.prefix}-func-${local.region}"
+    aks_cluster       = "${local.prefix}-aks-${local.region}"
+    container_app_env = "${local.prefix}-cae-${local.region}"
+    app_service_plan  = "${local.prefix}-asp-${local.region}"
+    webapp            = "${local.prefix}-app-${local.region}"
+    function_app      = "${local.prefix}-func-${local.region}"
 
     # Data
-    cosmos_account        = "${local.prefix}-cosmos-${local.region}"
+    cosmos_account = "${local.prefix}-cosmos-${local.region}"
 
     # Monitoring
-    log_analytics         = "${local.prefix}-law-${local.region}"
-    app_insights          = "${local.prefix}-ai-${local.region}"
+    log_analytics = "${local.prefix}-law-${local.region}"
+    app_insights  = "${local.prefix}-ai-${local.region}"
 
     # Identity
-    managed_identity      = "${local.prefix}-id-${local.region}"
+    managed_identity = "${local.prefix}-id-${local.region}"
   }
 
   # Resource names WITHOUT hyphens (Key Vault, Storage Account)

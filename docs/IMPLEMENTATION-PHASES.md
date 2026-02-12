@@ -81,9 +81,9 @@ git push origin main
 ./scripts/init-backend.sh  # or .ps1 for Windows
 
 # Or manually:
-az group create --name terraform-state-rg --location eastus
-az storage account create --name tfstateyourname --resource-group terraform-state-rg --location eastus --sku Standard_LRS
-az storage container create --name tfstate --account-name tfstateyourname
+az group create --name contoso-tfstate-rg --location southeastasia
+az storage account create --name stcontosotfstate001 --resource-group contoso-tfstate-rg --location southeastasia --sku Standard_LRS
+az storage container create --name tfstate --account-name stcontosotfstate001
 ```
 
 **Update Configuration**:
@@ -91,10 +91,11 @@ Edit `infra/envs/dev/backend.tf`:
 ```hcl
 terraform {
   backend "azurerm" {
-    resource_group_name  = "terraform-state-rg"
-    storage_account_name = "tfstateyourname"
+    resource_group_name  = "contoso-tfstate-rg"
+    storage_account_name = "stcontosotfstate001"
     container_name       = "tfstate"
     key                  = "dev.terraform.tfstate"
+    use_azuread_auth     = true
   }
 }
 ```
@@ -226,12 +227,12 @@ serviceConnection: "sc-azure-oidc-or-mi"
 **Example Configuration**:
 ```hcl
 # infra/envs/dev/dev.tfvars
-organization_name = "mycompany"
-project_name      = "pilot-app"
-location          = "eastus"
+organization_name = "contoso"
+project_name      = "contoso"
+location          = "southeastasia"
 tenant_id         = "your-tenant-id"
 cost_center       = "Engineering"
-owner_email       = "pilot-team@mycompany.com"
+owner_email       = "devops@contoso.com"
 ```
 
 #### 6.2 First Deployment

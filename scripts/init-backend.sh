@@ -11,11 +11,12 @@ echo "Terraform Backend Initialization"
 echo "=========================================="
 echo ""
 
-# Configuration
-RESOURCE_GROUP_NAME="terraform-state-rg"
-STORAGE_ACCOUNT_NAME="tfstate$(whoami | tr -d '-')$(date +%s | tail -c 5)"
+# Configuration - MUST match backend.tf in all environments!
+# See: infra/envs/dev/backend.tf, examples/pattern-2-delegated/*/main.tf
+RESOURCE_GROUP_NAME="contoso-tfstate-rg"
+STORAGE_ACCOUNT_NAME="stcontosotfstate001"
 CONTAINER_NAME="tfstate"
-LOCATION="eastus"
+LOCATION="southeastasia"
 SOFT_DELETE_DAYS=90
 
 echo "Configuration:"
@@ -196,4 +197,9 @@ echo "   az storage account network-rule add \\"
 echo "     --account-name $STORAGE_ACCOUNT_NAME \\"
 echo "     --resource-group $RESOURCE_GROUP_NAME \\"
 echo "     --subnet <AGENT_SUBNET_RESOURCE_ID>"
+echo ""
+echo "5. State file keys used in this framework:"
+echo "   Pattern 1 (Platform):   dev.terraform.tfstate"
+echo "   Pattern 2 (CRM):        dev-app-crm.tfstate"
+echo "   Pattern 2 (E-commerce): dev-app-ecommerce.tfstate"
 echo ""

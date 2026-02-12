@@ -16,12 +16,12 @@ output "log_analytics_workspace_id" {
 output "deployment_info" {
   description = "Deployment information"
   value = {
-    environment       = "Staging"
-    resource_group    = azurerm_resource_group.main.name
-    location          = var.location
-    vnet_name         = module.networking.vnet_name
+    environment        = "Staging"
+    resource_group     = azurerm_resource_group.main.name
+    location           = var.location
+    vnet_name          = module.networking.vnet_name
     vnet_address_space = "10.2.0.0/16"
-    log_analytics     = azurerm_log_analytics_workspace.main.name
-    retention_days    = 60
+    log_analytics      = azurerm_log_analytics_workspace.main.name
+    retention_days     = 60
   }
 }

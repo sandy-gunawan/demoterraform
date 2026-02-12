@@ -46,7 +46,7 @@ In Terraform, you'll see these file types over and over. Here's what each one do
 
 # "I want a resource group"
 resource "azurerm_resource_group" "main" {
-  name     = "myapp-rg-dev"
+  name     = "contoso-rg-dev"
   location = "southeastasia"
 }
 
@@ -54,7 +54,7 @@ resource "azurerm_resource_group" "main" {
 module "aks" {
   source = "../../modules/aks"
   
-  cluster_name = "myapp-aks-dev"
+  cluster_name = "contoso-aks-dev"
   location     = "southeastasia"
   # ... more configuration
 }
@@ -72,7 +72,7 @@ module "aks" {
 variable "project_name" {
   description = "Name of the project"    # What this variable is for
   type        = string                    # Must be text (not a number)
-  default     = "myapp"                   # If no one specifies, use this
+  default     = "contoso"                  # If no one specifies, use this
 }
 
 variable "enable_aks" {
@@ -97,7 +97,7 @@ variable "aks_node_count" {
 ```hcl
 # dev.tfvars - "Here are my answers for development environment"
 
-project_name      = "myapp"
+project_name      = "contoso"
 location          = "southeastasia"
 enable_aks        = true       # Yes, I want AKS
 enable_cosmosdb   = true       # Yes, I want database
@@ -135,10 +135,11 @@ output "aks_cluster_name" {
 
 terraform {
   backend "azurerm" {
-    resource_group_name  = "terraform-state-rg"
-    storage_account_name = "tfstatemycompany"
+    resource_group_name  = "contoso-tfstate-rg"
+    storage_account_name = "stcontosotfstate001"
     container_name       = "tfstate"
     key                  = "dev.terraform.tfstate"  # Unique name per environment!
+    use_azuread_auth     = true                      # Azure AD auth (more secure)
   }
 }
 ```
@@ -180,7 +181,7 @@ This is the most important thing to understand. Here's how data flows:
 │  │ Values   │──────▶│ Declares │──────▶│ Uses     │     │
 │  │          │       │ variables │       │ variables│     │
 │  │project=  │       │          │       │ to create│     │
-│  │ "myapp"  │       │variable  │       │ resources│     │
+│  │"contoso"│       │variable  │       │ resources│     │
 │  │          │       │"project" │       │          │     │
 │  │enable_aks│       │{         │       │module    │     │
 │  │ = true   │       │  type=   │       │ "aks" {  │     │
@@ -203,12 +204,12 @@ This is the most important thing to understand. Here's how data flows:
 
 ### Step by Step:
 
-1. **You edit `dev.tfvars`**: "I want AKS enabled, project name is myapp"
+1. **You edit `dev.tfvars`**: "I want AKS enabled, project name is contoso"
 2. **`variables.tf` validates**: "OK, `enable_aks` must be bool ✓, `project_name` must be string ✓"
 3. **`main.tf` uses the values**: "OK, `enable_aks` is true, so I'll create an AKS module"
 4. **`main.tf` calls a module**: "I'm calling `modules/aks/` with these parameters"
 5. **The module creates resources**: "Creating AKS cluster in Azure..."
-6. **`outputs.tf` shows results**: "Done! Here's the cluster name: myapp-aks-dev"
+6. **`outputs.tf` shows results**: "Done! Here's the cluster name: contoso-aks-dev"
 
 ---
 
@@ -218,13 +219,13 @@ A module call in Terraform is like **calling a function** in programming:
 
 ```hcl
 # This is like calling a function:
-# result = createAKS(name="myapp-aks-dev", nodeCount=1, location="sea")
+# result = createAKS(name="contoso-aks-dev", nodeCount=1, location="sea")
 
 module "aks" {
   source = "../../modules/aks"        # Where the function code lives
   
   # Parameters (inputs) to the function:
-  cluster_name = "myapp-aks-dev"
+  cluster_name = "contoso-aks-dev"
   node_count   = 1
   location     = "southeastasia"
 }
@@ -350,7 +351,7 @@ Person B: terraform apply → Lock acquired ✓ → Now I can make changes
 Each environment has its own state file:
 
 ```
-Azure Storage Account: tfstatemycompany
+Azure Storage Account: stcontosotfstate001
 └── Container: tfstate
     ├── dev.terraform.tfstate          ← Dev environment state
     ├── staging.terraform.tfstate      ← Staging environment state

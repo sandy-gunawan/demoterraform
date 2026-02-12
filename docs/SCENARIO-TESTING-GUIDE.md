@@ -202,10 +202,10 @@ Terraform needs a place to store its "state" (a record of what resources exist).
 
 ```powershell
 # Set variables (customize these)
-$RESOURCE_GROUP = "terraform-state-rg"
-$STORAGE_ACCOUNT = "tfstate$(Get-Random -Maximum 99999)"  # Generates unique name
+$RESOURCE_GROUP = "contoso-tfstate-rg"
+$STORAGE_ACCOUNT = "stcontosotfstate001"
 $CONTAINER = "tfstate"
-$LOCATION = "eastus"
+$LOCATION = "southeastasia"
 
 # Create resource group
 Write-Host "Creating resource group..." -ForegroundColor Green
@@ -300,10 +300,11 @@ code backend.tf
 ```hcl
 terraform {
   backend "azurerm" {
-    resource_group_name  = "terraform-state-rg"
-    storage_account_name = "tfstate12345"  # ← PUT YOUR NAME HERE!
+    resource_group_name  = "contoso-tfstate-rg"
+    storage_account_name = "stcontosotfstate001"
     container_name       = "tfstate"
     key                  = "dev.terraform.tfstate"
+    use_azuread_auth     = true
   }
 }
 ```
@@ -347,9 +348,9 @@ code dev.tfvars
 # -----------------------------------------------------------------------------
 # Basic Configuration
 # -----------------------------------------------------------------------------
-organization_name = "mycompany"        # ← Change to your company/name
+organization_name = "contoso"           # ← Company name
 project_name      = "scenariotest"     # ← Keep as-is for testing
-location          = "eastus"           # ← Change to your preferred region
+location          = "southeastasia"    # ← Closest to Indonesia
 
 # Azure AD Configuration (IMPORTANT - fill this!)
 tenant_id = "12345678-90ab-cdef-1234-567890abcdef"  # ← PASTE YOUR TENANT ID HERE
@@ -499,7 +500,7 @@ Terraform will perform the following actions:
   # azurerm_resource_group.main will be created
   + resource "azurerm_resource_group" "main" {
       + name     = "scenariotest-rg-dev"
-      + location = "eastus"
+      + location = "southeastasia"
     }
 
   # module.networking.azurerm_virtual_network.vnet will be created
@@ -1294,10 +1295,11 @@ code backend.tf
 ```hcl
 terraform {
   backend "azurerm" {
-    resource_group_name  = "terraform-state-rg"
-    storage_account_name = "tfstate12345"  # ← SAME as dev! (Use your actual name)
+    resource_group_name  = "contoso-tfstate-rg"
+    storage_account_name = "stcontosotfstate001"  # ← SAME as dev!
     container_name       = "tfstate"
     key                  = "prod.terraform.tfstate"  # ← DIFFERENT KEY!
+    use_azuread_auth     = true
   }
 }
 ```
@@ -1328,9 +1330,9 @@ code prod.tfvars
 # -----------------------------------------------------------------------------
 # Basic Configuration
 # -----------------------------------------------------------------------------
-organization_name = "mycompany"        # ← Same as dev
+organization_name = "contoso"           # ← Same as dev
 project_name      = "scenariotest"     # ← Same as dev (different resources due to env)
-location          = "eastus"           # ← Same as dev (or choose different region)
+location          = "southeastasia"    # ← Same as dev (or choose different region)
 
 # Azure AD Configuration
 tenant_id = "12345678-90ab-cdef-1234-567890abcdef"  # ← PASTE YOUR TENANT ID
@@ -1514,9 +1516,9 @@ az group list --query "[?contains(name, 'scenariotest')].{Name:name, Location:lo
 ```
 Name                     Location
 -----------------------  ----------
-scenariotest-rg-dev      eastus
-scenariotest-rg-prod     eastus
-terraform-state-rg       eastus
+scenariotest-rg-dev      southeastasia
+scenariotest-rg-prod     southeastasia
+contoso-tfstate-rg       southeastasia
 ```
 
 ✅ **Success:** You have TWO separate environments running simultaneously!
@@ -1792,10 +1794,10 @@ If you're completely done and want to delete the state storage too:
 
 ```powershell
 # Delete the state storage resource group
-az group delete --name terraform-state-rg --yes --no-wait
+az group delete --name contoso-tfstate-rg --yes --no-wait
 
 # Check deletion status
-az group show --name terraform-state-rg --query properties.provisioningState
+az group show --name contoso-tfstate-rg --query properties.provisioningState
 ```
 
 ⚠️ **Warning:** This deletes the Terraform state files. Only do this if you're completely finished with all scenarios!
@@ -1809,7 +1811,7 @@ az group show --name terraform-state-rg --query properties.provisioningState
 3. **What you should see:**
    - ❌ `scenariotest-rg-dev` - GONE
    - ❌ `scenariotest-rg-prod` - GONE
-   - ❌ `terraform-state-rg` - GONE (if you deleted it in Step 5.6)
+   - ❌ `contoso-tfstate-rg` - GONE (if you deleted it in Step 5.6)
 4. **Resource Groups should be nearly empty** (only default Azure subscriptions remain)
 
 **Screenshot description:** The Resource Groups page showing an empty list or only system/default resource groups, with no "scenariotest" prefixed groups.
@@ -1874,7 +1876,7 @@ $STORAGE_ACCOUNT = "tfstate$(Get-Random -Maximum 999999)"
 Write-Host "New storage account name: $STORAGE_ACCOUNT"
 
 # Retry creating the storage account with the new name
-az storage account create --name $STORAGE_ACCOUNT --resource-group terraform-state-rg --location eastus --sku Standard_LRS
+az storage account create --name $STORAGE_ACCOUNT --resource-group contoso-tfstate-rg --location southeastasia --sku Standard_LRS
 ```
 
 ---
@@ -2076,12 +2078,12 @@ StatusCode=404, ErrorCode=ContainerNotFound
 **Solution:**
 ```powershell
 # Verify backend storage exists
-az storage account show --name tfstate12345
+az storage account show --name stcontosotfstate001
 
 # If it doesn't exist, recreate it:
-az storage account create --name tfstate12345 --resource-group terraform-state-rg --location eastus --sku Standard_LRS
+az storage account create --name stcontosotfstate001 --resource-group contoso-tfstate-rg --location southeastasia --sku Standard_LRS
 
-az storage container create --name tfstate --account-name tfstate12345 --auth-mode login
+az storage container create --name tfstate --account-name stcontosotfstate001 --auth-mode login
 
 # Then reinitialize terraform
 terraform init -reconfigure

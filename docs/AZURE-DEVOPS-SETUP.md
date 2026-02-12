@@ -127,21 +127,21 @@ Before starting, ensure you have:
    
    # Create resource group for Terraform state
    az group create \
-     --name terraform-state-rg \
-     --location eastus
+     --name contoso-tfstate-rg \
+     --location southeastasia
    
    # Create storage account (name must be globally unique)
    az storage account create \
-     --name tfstate[yourname][random] \
-     --resource-group terraform-state-rg \
-     --location eastus \
+     --name stcontosotfstate001 \
+     --resource-group contoso-tfstate-rg \
+     --location southeastasia \
      --sku Standard_LRS \
      --encryption-services blob
    
    # Create container for state files
    az storage container create \
      --name tfstate \
-     --account-name tfstate[yourname][random]
+     --account-name stcontosotfstate001
    ```
 
 **✓ Checkpoint**: You have a storage account ready for Terraform state.
@@ -366,10 +366,11 @@ Environments provide **approval gates** for deployments. This ensures no one can
    ```hcl
    terraform {
      backend "azurerm" {
-       resource_group_name  = "terraform-state-rg"
-       storage_account_name = "tfstate[yourname][random]"  # Your storage account name
+       resource_group_name  = "contoso-tfstate-rg"
+       storage_account_name = "stcontosotfstate001"
        container_name       = "tfstate"
        key                  = "dev.terraform.tfstate"
+       use_azuread_auth     = true
      }
    }
    ```
@@ -378,8 +379,8 @@ Environments provide **approval gates** for deployments. This ensures no one can
    
    Edit `infra/envs/dev/dev.tfvars`:
    ```hcl
-   project_name = "myproject"
-   location     = "eastus"
+   project_name = "contoso"
+   location     = "southeastasia"
    tenant_id    = "YOUR_TENANT_ID"
    admin_group_object_ids = ["YOUR_ADMIN_GROUP_ID"]
    ```
@@ -449,7 +450,7 @@ Environments provide **approval gates** for deployments. This ensures no one can
 az role assignment create \
   --role "Storage Blob Data Contributor" \
   --assignee YOUR_SERVICE_PRINCIPAL_ID \
-  --scope /subscriptions/YOUR_SUB_ID/resourceGroups/terraform-state-rg/providers/Microsoft.Storage/storageAccounts/YOUR_STORAGE_ACCOUNT
+  --scope /subscriptions/YOUR_SUB_ID/resourceGroups/contoso-tfstate-rg/providers/Microsoft.Storage/storageAccounts/stcontosotfstate001
 ```
 
 ### Common Issue 2: "OIDC token validation failed"

@@ -39,8 +39,8 @@ resource "azurerm_mssql_database" "db" {
   max_size_gb  = each.value.max_size_gb
   sku_name     = each.value.sku_name
 
-  zone_redundant  = each.value.zone_redundant
-  read_scale      = each.value.read_scale
+  zone_redundant     = each.value.zone_redundant
+  read_scale         = each.value.read_scale
   read_replica_count = each.value.read_replica_count
 
   tags = var.tags

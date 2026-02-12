@@ -17,7 +17,7 @@ variable "environment" {
 variable "location" {
   description = "Azure region"
   type        = string
-  default     = "eastus"
+  default     = "southeastasia"
 }
 
 variable "tenant_id" {

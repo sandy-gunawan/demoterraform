@@ -5,19 +5,25 @@
 variable "organization_name" {
   description = "Organization name for resource naming"
   type        = string
-  default     = "myorg"
+  default     = "contoso"
 }
 
 variable "project_name" {
-  description = "Name of the project"
+  description = "Name of the project (used in resource naming)"
   type        = string
-  default     = "myproject"
+  default     = "contoso"
+}
+
+variable "environment" {
+  description = "Environment name (dev, staging, prod)"
+  type        = string
+  default     = "dev"
 }
 
 variable "location" {
-  description = "Azure region"
+  description = "Azure region (southeastasia recommended for Indonesia)"
   type        = string
-  default     = "eastus"
+  default     = "southeastasia"
 }
 
 variable "tenant_id" {

@@ -19,7 +19,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
     min_count           = var.enable_auto_scaling ? var.min_node_count : null
     max_count           = var.enable_auto_scaling ? var.max_node_count : null
     vnet_subnet_id      = var.vnet_subnet_id
-    
+
     upgrade_settings {
       max_surge = "10%"
     }

@@ -40,7 +40,7 @@ resource "azurerm_resource_group" "main" {
 # =============================================================================
 module "global_standards" {
   source = "../../global"
-  
+
   organization_name = var.organization_name
   project_name      = var.project_name
   environment       = "staging"
@@ -59,7 +59,7 @@ module "networking" {
   resource_group_name = azurerm_resource_group.main.name
   network_name        = "${var.project_name}-vnet-staging"
   location            = var.location
-  address_space       = ["10.2.0.0/16"]  # Different IP range for staging
+  address_space       = ["10.2.0.0/16"] # Different IP range for staging
 
   subnets = {
     "aks-subnet" = {
@@ -136,7 +136,7 @@ resource "azurerm_log_analytics_workspace" "main" {
   location            = var.location
   resource_group_name = azurerm_resource_group.main.name
   sku                 = "PerGB2018"
-  retention_in_days   = var.log_retention_days  # 60 days for staging
+  retention_in_days   = var.log_retention_days # 60 days for staging
 
   tags = module.global_standards.common_tags
 }
@@ -164,13 +164,13 @@ module "security" {
   source = "../../modules/security"
 
   resource_group_name = azurerm_resource_group.main.name
-  key_vault_name      = "${var.project_name}kvstaging"  # Alphanumeric + hyphens, 3-24 chars
+  key_vault_name      = "${var.project_name}kvstaging" # Alphanumeric + hyphens, 3-24 chars
   location            = var.location
   tenant_id           = var.tenant_id
 
   # Feature toggles - Staging has purge protection
-  purge_protection_enabled    = var.key_vault_purge_protection  # true
-  network_acls_default_action = var.network_acl_default_action  # Deny
+  purge_protection_enabled    = var.key_vault_purge_protection # true
+  network_acls_default_action = var.network_acl_default_action # Deny
 
   tags = module.global_standards.common_tags
 }
@@ -191,9 +191,9 @@ module "aks" {
   vnet_subnet_id = module.networking.subnet_ids["aks-subnet"]
 
   # Scaling - Staging uses fixed medium size (no auto-scaling)
-  node_count          = var.aks_node_count  # 2 nodes
-  vm_size             = var.aks_node_size   # Standard_B2ms
-  enable_auto_scaling = var.enable_auto_scaling  # false
+  node_count          = var.aks_node_count      # 2 nodes
+  vm_size             = var.aks_node_size       # Standard_B2ms
+  enable_auto_scaling = var.enable_auto_scaling # false
 
   # Monitoring
   log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
@@ -229,13 +229,13 @@ module "cosmosdb" {
   source = "../../modules/cosmosdb"
 
   resource_group_name = azurerm_resource_group.main.name
-  account_name        = "${var.project_name}cosmosstaging"  # No hyphens
+  account_name        = "${var.project_name}cosmosstaging" # No hyphens
   location            = var.location
 
   # Feature toggles - Staging uses some prod-like settings for testing
   enable_automatic_failover       = false
   enable_multiple_write_locations = false
-  public_network_access_enabled   = true  # Still public for staging
+  public_network_access_enabled   = true # Still public for staging
   backup_type                     = "Periodic"
 
   tags = module.global_standards.common_tags
@@ -253,7 +253,7 @@ module "webapp" {
   location            = var.location
 
   # SKU - Staging uses standard tier
-  sku_name = "S1"  # Standard tier for staging
+  sku_name = "S1" # Standard tier for staging
 
   tags = module.global_standards.common_tags
 }

@@ -1,7 +1,23 @@
 # E-Commerce Application - Terraform Configuration
+# =============================================================================
+# 🎓 NEWBIE NOTE: Pattern 2 teams use the SAME terraform version, provider
+# version, and backend storage as Platform team (Pattern 1).
+# Only the backend "key" is different (separate state file per app).
+#
+# What's SAME as Pattern 1:
+#   - Terraform version (>= 1.5.0)
+#   - Provider version (~> 3.80)
+#   - Backend storage account (stcontosotfstate001)
+#   - Provider feature settings
+#
+# What's DIFFERENT from Pattern 1:
+#   - Backend key (dev-app-ecommerce.tfstate vs dev.terraform.tfstate)
+#   - No VNet creation (reads Platform's VNet via data sources)
+#   - Own resource group, own apps
+# =============================================================================
 
 terraform {
-  required_version = ">= 1.6.0"
+  required_version = ">= 1.5.0"
 
   required_providers {
     azurerm = {
@@ -10,19 +26,21 @@ terraform {
     }
   }
 
-  # Remote state storage
+  # Remote state storage - SAME storage as Platform team!
+  # 🎓 NEWBIE NOTE: Same storage account, different "key" (state file name)
   backend "azurerm" {
-    resource_group_name  = "rg-contoso-dev-tfstate-001"
-    storage_account_name = "stcontosodevtfstate001"
+    resource_group_name  = "contoso-tfstate-rg"
+    storage_account_name = "stcontosotfstate001"
     container_name       = "tfstate"
-    key                  = "dev-app-ecommerce.tfstate" # Separate state per app
+    key                  = "dev-app-ecommerce.tfstate" # Separate state per app!
+    use_azuread_auth     = true
   }
 }
 
 provider "azurerm" {
   features {
     resource_group {
-      prevent_deletion_if_contains_resources = false
+      prevent_deletion_if_contains_resources = true
     }
     key_vault {
       purge_soft_delete_on_destroy    = false

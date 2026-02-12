@@ -174,7 +174,7 @@ graph LR
 organization_name = "contoso"
 project_name      = "ecommerce"
 environment       = "dev"
-location          = "eastus"
+location          = "southeastasia"
 cost_center       = "Engineering"
 owner_email       = "devops@contoso.com"
 ```

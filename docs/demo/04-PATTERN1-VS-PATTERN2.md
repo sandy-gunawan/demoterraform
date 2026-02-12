@@ -367,8 +367,8 @@ terraform {
   required_version = ">= 1.5.0"
   
   backend "azurerm" {
-    resource_group_name  = "terraform-state-rg"
-    storage_account_name = "tfstatecontosoid"
+    resource_group_name  = "contoso-tfstate-rg"
+    storage_account_name = "stcontosotfstate001"
     container_name       = "tfstate"
     key                  = "dev-shared-landing-zone.tfstate"  # Different key!
   }
@@ -565,7 +565,7 @@ resource "azurerm_linux_web_app" "crm" {
 ### Step 3: Understanding the State File Separation
 
 ```
-Azure Storage Account: tfstatecontosoid
+Azure Storage Account: stcontosotfstate001
 └── Container: tfstate
     ├── dev.terraform.tfstate           ← Platform team's state (shared infra)
     │   Contains:

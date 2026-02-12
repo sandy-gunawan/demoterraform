@@ -33,7 +33,7 @@ terraform apply
 # ✅ Naming conventions
 # ✅ Tagging standards
 # ✅ Provider configuration
-# State: Stored in Azure Storage (terraform-state-rg)
+# State: Stored in Azure Storage (contoso-tfstate-rg)
 ```
 
 ### Week 1: Foundation Setup
@@ -88,8 +88,8 @@ Terraform will perform the following actions:
 
   # azurerm_cosmosdb_account.db[0] will be created
   + resource "azurerm_cosmosdb_account" "db" {
-      + name     = "myapp-cosmos-dev"
-      + location = "eastus"
+      + name     = "contoso-cosmos-dev"
+      + location = "southeastasia"
       ...
     }
 
@@ -359,7 +359,7 @@ Dev (test changes) → Staging (validate) → Prod (deploy)
 terraform init -reconfigure
 
 # Import existing resources if needed
-terraform import azurerm_resource_group.main /subscriptions/.../resourceGroups/myapp-rg-dev
+terraform import azurerm_resource_group.main /subscriptions/.../resourceGroups/contoso-rg-dev
 ```
 
 ### "Error: Resource already exists"
@@ -372,7 +372,7 @@ terraform import azurerm_resource_group.main /subscriptions/.../resourceGroups/m
 terraform import <resource_type>.<name> <azure_resource_id>
 
 # Example:
-terraform import azurerm_virtual_network.vnet /subscriptions/.../virtualNetworks/myapp-vnet-dev
+terraform import azurerm_virtual_network.vnet /subscriptions/.../virtualNetworks/contoso-vnet-dev
 ```
 
 ### "How do I see what's in my state?"
@@ -423,10 +423,10 @@ This section shows the complete stack from Global Standards down to Database lev
 │  ═══════════════════════════════════════════════════════════════════════│
 │  infra/envs/dev/                                                         │
 │                                                                          │
-│  📦 Resource Group: myapp-rg-dev                                        │
-│  └── Location: eastus                                                   │
+│  📦 Resource Group: contoso-rg-dev                                      │
+│  └── Location: southeastasia                                            │
 │                                                                          │
-│  🌐 Virtual Network: myapp-vnet-dev (10.1.0.0/16)                      │
+│  🌐 Virtual Network: contoso-vnet-dev (10.1.0.0/16)                      │
 │  ├── Subnet: aks-subnet (10.1.1.0/24)                                  │
 │  │   └── Service Endpoints: KeyVault, CosmosDB                          │
 │  ├── Subnet: app-subnet (10.1.2.0/24)                                  │
@@ -437,7 +437,7 @@ This section shows the complete stack from Global Standards down to Database lev
 │  ├── aks-nsg: Allow 443 (HTTPS)                                        │
 │  └── app-nsg: Allow 443 from VNet                                      │
 │                                                                          │
-│  📊 Log Analytics: myapp-logs-dev                                       │
+│  📊 Log Analytics: contoso-logs-dev                                       │
 │  └── Retention: 30 days                                                 │
 │                                                                          │
 │  State: dev.tfstate (in Azure Storage)                                  │
@@ -448,10 +448,10 @@ This section shows the complete stack from Global Standards down to Database lev
 ┌─────────────────────────────────────┐  ┌────────────────────────────────┐
 │  Layer 3: COMPUTE (Shared AKS)      │  │  Layer 3: COMPUTE (App Service)│
 │  ═══════════════════════════════════│  │  ══════════════════════════════│
-│  AKS Cluster: myapp-aks-dev         │  │  App Service Plan              │
-│  ├── VNet: myapp-vnet-dev           │  │  └── SKU: B1 (Basic)           │
+│  AKS Cluster: contoso-aks-dev       │  │  App Service Plan              │
+│  ├── VNet: contoso-vnet-dev         │  │  └── SKU: B1 (Basic)           │
 │  ├── Subnet: aks-subnet             │  │                                │
-│  ├── Nodes: 1x Standard_B2s         │  │  Web App: myapp-app3-dev      │
+│  ├── Nodes: 1x Standard_B2s         │  │  Web App: contoso-app3-dev      │
 │  └── Azure CNI networking           │  │  ├── Runtime: .NET/Node/Python │
 │                                     │  │  ├── HTTPS Only: true          │
 │  ┌─────────────────────────────┐   │  │  └── Managed Identity: enabled │
@@ -461,7 +461,7 @@ This section shows the complete stack from Global Standards down to Database lev
 │  │    ├── Replicas: 2          │   │       ┌──────────────────────┐
 │  │    ├── Image: app1:latest   │   │       │ 🗄️ Cosmos DB         │
 │  │    └── Env Vars (from KV)   │   │       │ ────────────────────│
-│  │                              │   │       │ Account: myapp-db   │
+│  │                              │   │       │ Account: contoso-db   │
 │  │ 🌐 Service: app1-svc        │   │       │ Database: app3-db   │
 │  │    ├── Type: LoadBalancer   │   │       │ Container: items    │
 │  │    └── Port: 80 → 8080      │   │       │ Partition: /userId  │
@@ -489,7 +489,7 @@ This section shows the complete stack from Global Standards down to Database lev
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  Layer 4: DATA LAYER (Shared Cosmos DB)                                 │
 │  ═══════════════════════════════════════════════════════════════════════│
-│  Cosmos DB Account: myapp-cosmos-dev                                     │
+│  Cosmos DB Account: contoso-cosmos-dev                                     │
 │  ├── API: SQL (Core)                                                    │
 │  ├── Consistency: Session                                               │
 │  ├── Public Access: Enabled (dev only)                                  │

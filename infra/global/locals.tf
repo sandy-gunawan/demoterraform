@@ -4,7 +4,7 @@
 locals {
   # Naming Convention: {org}-{project}-{resource}-{env}
   # Example: contoso-myapp-aks-prod
-  
+
   # Standard naming components
   naming = {
     organization = var.organization_name
@@ -15,26 +15,26 @@ locals {
 
   # Resource naming patterns
   resource_names = {
-    resource_group       = "${local.naming.organization}-${local.naming.project}-rg-${local.naming.environment}"
-    aks_cluster          = "${local.naming.organization}-${local.naming.project}-aks-${local.naming.environment}"
-    vnet                 = "${local.naming.organization}-${local.naming.project}-vnet-${local.naming.environment}"
-    log_analytics        = "${local.naming.organization}-${local.naming.project}-logs-${local.naming.environment}"
-    key_vault            = "${local.naming.organization}-${local.naming.project}-kv-${local.naming.environment}"
-    storage_account      = lower(replace("${local.naming.organization}${local.naming.project}st${local.naming.environment}", "-", ""))
-    cosmos_db            = "${local.naming.organization}-${local.naming.project}-cosmos-${local.naming.environment}"
-    container_registry   = lower(replace("${local.naming.organization}${local.naming.project}acr", "-", ""))
-    app_service          = "${local.naming.organization}-${local.naming.project}-app-${local.naming.environment}"
+    resource_group     = "${local.naming.organization}-${local.naming.project}-rg-${local.naming.environment}"
+    aks_cluster        = "${local.naming.organization}-${local.naming.project}-aks-${local.naming.environment}"
+    vnet               = "${local.naming.organization}-${local.naming.project}-vnet-${local.naming.environment}"
+    log_analytics      = "${local.naming.organization}-${local.naming.project}-logs-${local.naming.environment}"
+    key_vault          = "${local.naming.organization}-${local.naming.project}-kv-${local.naming.environment}"
+    storage_account    = lower(replace("${local.naming.organization}${local.naming.project}st${local.naming.environment}", "-", ""))
+    cosmos_db          = "${local.naming.organization}-${local.naming.project}-cosmos-${local.naming.environment}"
+    container_registry = lower(replace("${local.naming.organization}${local.naming.project}acr", "-", ""))
+    app_service        = "${local.naming.organization}-${local.naming.project}-app-${local.naming.environment}"
   }
 
   # Standard tags applied to all resources
   standard_tags = {
-    ManagedBy       = "Terraform"
-    Organization    = local.naming.organization
-    Project         = local.naming.project
-    Environment     = local.naming.environment
-    CostCenter      = var.cost_center
-    Owner           = var.owner_email
-    Repository      = var.repository_url
+    ManagedBy    = "Terraform"
+    Organization = local.naming.organization
+    Project      = local.naming.project
+    Environment  = local.naming.environment
+    CostCenter   = var.cost_center
+    Owner        = var.owner_email
+    Repository   = var.repository_url
   }
 
   # Merge standard tags with environment-specific tags
@@ -50,7 +50,7 @@ locals {
     centralus     = "cus"
     westeurope    = "weu"
     northeurope   = "neu"
-    southeastasia = "sea"  # Singapore - best for Indonesia
+    southeastasia = "sea" # Singapore - best for Indonesia
     eastasia      = "ea"
   }
 }

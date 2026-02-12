@@ -34,9 +34,9 @@ az account set --subscription <subscription-id>
 3. **Configure backend storage** (Optional but recommended)
 ```bash
 # Create storage account for Terraform state
-az group create --name terraform-state-rg --location eastus
-az storage account create --name tfstateXXXXX --resource-group terraform-state-rg --location eastus --sku Standard_LRS
-az storage container create --name tfstate --account-name tfstateXXXXX
+az group create --name contoso-tfstate-rg --location southeastasia
+az storage account create --name stcontosotfstate001 --resource-group contoso-tfstate-rg --location southeastasia --sku Standard_LRS
+az storage container create --name tfstate --account-name stcontosotfstate001
 ```
 
 4. **Update backend configuration**
@@ -125,8 +125,8 @@ terraform-framework/
 module "aks" {
   source = "../../../infra/modules/aks"
 
-  cluster_name               = "myapp-aks-prod"
-  location                   = "eastus"
+  cluster_name               = "contoso-aks-prod"
+  location                   = "southeastasia"
   subnet_id                  = module.networking.subnet_ids["aks-subnet"]
   log_analytics_workspace_id = azurerm_log_analytics_workspace.prod.id
   
@@ -215,7 +215,7 @@ partition_key_paths = ["/tenantId", "/userId", "/year"]
 module "cosmosdb" {
   source = "../../../infra/modules/cosmosdb"
 
-  account_name      = "myapp-cosmos-prod"
+  account_name      = "contoso-cosmos-prod"
   location          = "eastus"
   consistency_level = "Session"
   
@@ -304,9 +304,9 @@ module "networking" {
 module "landing_zone" {
   source = "../../modules/landing-zone"
 
-  project_name        = "myapp"
+  project_name        = "contoso"
   environment         = "prod"
-  location            = "eastus"
+  location            = "southeastasia"
   address_space       = ["10.3.0.0/16"]
   enable_nat_gateway  = true
   log_retention_days  = 90
@@ -336,7 +336,7 @@ module "security" {
   source = "../../modules/security"
 
   resource_group_name = azurerm_resource_group.main.name
-  key_vault_name      = "myapp-kv-prod"
+  key_vault_name      = "contoso-kv-prod"
   location            = "eastus"
   tenant_id           = var.tenant_id
 
@@ -363,7 +363,7 @@ module "webapp" {
   source = "../../modules/webapp"
 
   resource_group_name = azurerm_resource_group.main.name
-  app_name            = "myapp-web-prod"
+  app_name            = "contoso-web-prod"
   location            = "eastus"
   sku_name            = "P1v3"
   os_type             = "Linux"
@@ -387,7 +387,7 @@ module "container_app" {
   source = "../../modules/container-app"
 
   resource_group_name  = azurerm_resource_group.main.name
-  environment_name     = "myapp-cae-prod"
+  environment_name     = "contoso-cae-prod"
   location             = "eastus"
   infrastructure_subnet_id = module.networking.subnet_ids["app-subnet"]
 }
@@ -409,7 +409,7 @@ module "sql_database" {
   source = "../../modules/sql-database"
 
   resource_group_name = azurerm_resource_group.main.name
-  server_name         = "myapp-sql-prod"
+  server_name         = "contoso-sql-prod"
   location            = "eastus"
   administrator_login = "sqladmin"
   databases = {
@@ -434,7 +434,7 @@ module "postgresql" {
   source = "../../modules/postgresql"
 
   resource_group_name  = azurerm_resource_group.main.name
-  server_name          = "myapp-pg-prod"
+  server_name          = "contoso-pg-prod"
   location             = "eastus"
   administrator_login  = "pgadmin"
   sku_name             = "GP_Standard_D2s_v3"
@@ -535,8 +535,8 @@ cd infra/envs/dev  # or staging/prod
 2. **Configure Variables**
 Edit `terraform.tfvars`:
 ```hcl
-project_name = "myapp"
-location     = "eastus"
+project_name = "contoso"
+location     = "southeastasia"
 tenant_id    = "your-tenant-id"
 admin_group_object_ids = ["your-admin-group-id"]
 ```

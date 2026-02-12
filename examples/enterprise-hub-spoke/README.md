@@ -111,8 +111,8 @@ enterprise-hub-spoke/
 Edit `terraform.tfvars`:
 
 ```hcl
-organization_name = "mycompany"
-location          = "eastus"
+organization_name = "contoso"
+location          = "southeastasia"
 tenant_id         = "your-tenant-id"
 
 # Define spoke networks

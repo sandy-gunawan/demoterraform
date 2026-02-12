@@ -25,13 +25,14 @@ This folder contains Terraform configuration for the CRM application in dev envi
 
 ## 📋 Prerequisites
 
-**No dependencies on other teams!** CRM app creates its own networking.
+**Platform team must deploy Pattern 1 FIRST!** CRM reads its VNet from Platform.
 
 Required:
 - ✅ Azure subscription access
-- ✅ Terraform >= 1.6.0
+- ✅ Terraform >= 1.5.0
 - ✅ Azure CLI logged in (`az login`)
-- ✅ Backend storage account (for state file)
+- ✅ Backend storage account (`stcontosotfstate001` in `contoso-tfstate-rg`)
+- ✅ Pattern 1 deployed (creates VNet `vnet-contoso-dev-crm-001`)
 
 Check your access:
 ```bash

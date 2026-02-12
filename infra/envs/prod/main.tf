@@ -40,7 +40,7 @@ resource "azurerm_resource_group" "main" {
 # =============================================================================
 module "global_standards" {
   source = "../../global"
-  
+
   organization_name = var.organization_name
   project_name      = var.project_name
   environment       = "prod"
@@ -59,11 +59,11 @@ module "networking" {
   resource_group_name = azurerm_resource_group.main.name
   network_name        = "${var.project_name}-vnet-prod"
   location            = var.location
-  address_space       = ["10.3.0.0/16"]  # Different IP range for production
+  address_space       = ["10.3.0.0/16"] # Different IP range for production
 
   subnets = {
     "aks-subnet" = {
-      address_prefixes  = ["10.3.1.0/23"]  # Larger subnet for production scale
+      address_prefixes  = ["10.3.1.0/23"] # Larger subnet for production scale
       service_endpoints = ["Microsoft.Sql", "Microsoft.Storage", "Microsoft.KeyVault", "Microsoft.AzureCosmosDB"]
     }
     "app-subnet" = {
@@ -75,7 +75,7 @@ module "networking" {
       service_endpoints = ["Microsoft.Sql", "Microsoft.Storage"]
     }
     "pe-subnet" = {
-      address_prefixes  = ["10.3.5.0/24"]  # For private endpoints
+      address_prefixes  = ["10.3.5.0/24"] # For private endpoints
       service_endpoints = []
     }
   }
@@ -138,7 +138,7 @@ module "networking" {
           protocol                   = "Tcp"
           source_port_range          = "*"
           destination_port_range     = "1433"
-          source_address_prefix      = "10.3.3.0/24"  # app-subnet
+          source_address_prefix      = "10.3.3.0/24" # app-subnet
           destination_address_prefix = "*"
         }
         "deny-all-inbound" = {
@@ -162,7 +162,7 @@ module "networking" {
   }
 
   # Feature toggle: NAT Gateway ENABLED for production
-  create_nat_gateway = var.enable_nat_gateway  # true
+  create_nat_gateway = var.enable_nat_gateway # true
 
   tags = module.global_standards.common_tags
 }
@@ -175,7 +175,7 @@ resource "azurerm_log_analytics_workspace" "main" {
   location            = var.location
   resource_group_name = azurerm_resource_group.main.name
   sku                 = "PerGB2018"
-  retention_in_days   = var.log_retention_days  # 90 days for production
+  retention_in_days   = var.log_retention_days # 90 days for production
 
   tags = module.global_standards.common_tags
 }
@@ -203,13 +203,13 @@ module "security" {
   source = "../../modules/security"
 
   resource_group_name = azurerm_resource_group.main.name
-  key_vault_name      = "${var.project_name}kvprod"  # Alphanumeric + hyphens, 3-24 chars
+  key_vault_name      = "${var.project_name}kvprod" # Alphanumeric + hyphens, 3-24 chars
   location            = var.location
   tenant_id           = var.tenant_id
 
   # Feature toggles - Production has all security features
-  purge_protection_enabled    = var.key_vault_purge_protection   # true
-  network_acls_default_action = var.network_acl_default_action   # Deny
+  purge_protection_enabled    = var.key_vault_purge_protection # true
+  network_acls_default_action = var.network_acl_default_action # Deny
 
   # Private endpoint for Key Vault (if enabled)
   enable_private_endpoint    = var.enable_private_endpoints
@@ -274,13 +274,13 @@ module "cosmosdb" {
   source = "../../modules/cosmosdb"
 
   resource_group_name = azurerm_resource_group.main.name
-  account_name        = "${var.project_name}cosmosprod"  # No hyphens
+  account_name        = "${var.project_name}cosmosprod" # No hyphens
   location            = var.location
 
   # Feature toggles - Production has all reliability features
-  enable_automatic_failover       = true                            # Auto-failover
-  enable_multiple_write_locations = var.enable_geo_redundancy       # Multi-region writes
-  public_network_access_enabled   = !var.enable_private_endpoints   # Private only if PE enabled
+  enable_automatic_failover       = true                          # Auto-failover
+  enable_multiple_write_locations = var.enable_geo_redundancy     # Multi-region writes
+  public_network_access_enabled   = !var.enable_private_endpoints # Private only if PE enabled
   backup_type                     = var.enable_continuous_backup ? "Continuous" : "Periodic"
 
   # Private endpoint for Cosmos DB (if enabled)
@@ -303,7 +303,7 @@ module "webapp" {
   location            = var.location
 
   # SKU - Production uses premium tier
-  sku_name = "P1v3"  # Premium for production
+  sku_name = "P1v3" # Premium for production
 
   tags = module.global_standards.common_tags
 }

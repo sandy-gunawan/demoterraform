@@ -76,9 +76,9 @@ aks-application/
 Edit `terraform.tfvars` with your values:
 
 ```hcl
-project_name = "myapp"
+project_name = "contoso"
 environment  = "production"
-location     = "eastus"
+location     = "southeastasia"
 tenant_id    = "your-tenant-id"
 admin_group_object_ids = ["your-admin-group-id"]
 

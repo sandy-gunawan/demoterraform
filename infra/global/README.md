@@ -35,11 +35,11 @@ Each environment (dev/staging/prod) should reference these global standards:
 module "global_standards" {
   source = "../../global"
   
-  organization_name = "mycompany"
-  project_name      = "myproject"
+  organization_name = "contoso"
+  project_name      = "contoso"
   environment       = "dev"
   cost_center       = "Engineering"
-  owner_email       = "devops@mycompany.com"
+  owner_email       = "devops@contoso.com"
 }
 
 # Use the standard naming

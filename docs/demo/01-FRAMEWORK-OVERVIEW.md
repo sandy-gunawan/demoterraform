@@ -129,9 +129,9 @@ Terraform is a tool that lets you **describe your infrastructure in code** (file
 ```hcl
 # Write this once:
 resource "azurerm_kubernetes_cluster" "aks" {
-  name                = "myapp-aks-dev"
+  name                = "contoso-aks-dev"
   location            = "southeastasia"
-  resource_group_name = "myapp-rg-dev"
+  resource_group_name = "contoso-rg-dev"
   # ... configuration
 }
 
@@ -150,9 +150,9 @@ A module is a **reusable package** of Terraform code. Instead of writing 100 lin
 module "aks" {
   source = "../../modules/aks"
   
-  cluster_name        = "myapp-aks-dev"
+  cluster_name        = "contoso-aks-dev"
   location            = "southeastasia"
-  resource_group_name = "myapp-rg-dev"
+  resource_group_name = "contoso-rg-dev"
   node_count          = 1
   vm_size             = "Standard_D8ds_v5"
 }

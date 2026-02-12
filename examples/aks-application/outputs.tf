@@ -50,7 +50,7 @@ output "get_credentials_command" {
 
 output "deployment_summary" {
   description = "Deployment summary"
-  value = <<-EOT
+  value       = <<-EOT
     ========================================
     AKS Application Deployment Complete
     ========================================

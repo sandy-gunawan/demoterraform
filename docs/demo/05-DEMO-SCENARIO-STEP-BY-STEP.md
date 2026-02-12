@@ -66,13 +66,13 @@ az account set --subscription "Your-Subscription-ID"
 
 # Create resource group for state
 az group create \
-  --name terraform-state-rg \
+  --name contoso-tfstate-rg \
   --location southeastasia
 
 # Create storage account (name must be globally unique!)
 az storage account create \
-  --name tfstatecontosoid \
-  --resource-group terraform-state-rg \
+  --name stcontosotfstate001 \
+  --resource-group contoso-tfstate-rg \
   --location southeastasia \
   --sku Standard_LRS \
   --encryption-services blob
@@ -80,7 +80,7 @@ az storage account create \
 # Create containers for state files
 az storage container create \
   --name tfstate \
-  --account-name tfstatecontosoid
+  --account-name stcontosotfstate001
 ```
 
 > **Explain to client**: "This storage account is like a shared filing cabinet. Every team's Terraform state will be stored here, but in separate files so they don't interfere with each other."
@@ -93,8 +93,8 @@ Andi edits the configuration files:
 ```hcl
 terraform {
   backend "azurerm" {
-    resource_group_name  = "terraform-state-rg"
-    storage_account_name = "tfstatecontosoid"
+    resource_group_name  = "contoso-tfstate-rg"
+    storage_account_name = "stcontosotfstate001"
     container_name       = "tfstate"
     key                  = "dev.terraform.tfstate"
     use_azuread_auth     = true
@@ -555,8 +555,8 @@ Creates Own Resources:
 ```
 Azure Subscription
 │
-├── terraform-state-rg (State Storage)
-│   └── tfstatecontosoid (Storage Account)
+├── contoso-tfstate-rg (State Storage)
+│   └── stcontosotfstate001 (Storage Account)
 │       └── tfstate (Container)
 │           ├── dev.terraform.tfstate           ← Pattern 1 (ACT 1 + 2 + All VNets)
 │           ├── dev-app-crm.tfstate             ← CRM Team (ACT 3A - Apps only)

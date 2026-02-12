@@ -110,10 +110,10 @@ Without shared state:
 
 ```powershell
 # Set variables
-$RESOURCE_GROUP = "terraform-state-rg"
-$STORAGE_ACCOUNT = "tfstate$(Get-Random -Maximum 99999)"  # Must be globally unique
+$RESOURCE_GROUP = "contoso-tfstate-rg"
+$STORAGE_ACCOUNT = "stcontosotfstate001"
 $CONTAINER = "tfstate"
-$LOCATION = "eastus"
+$LOCATION = "southeastasia"
 
 # Create resource group
 az group create --name $RESOURCE_GROUP --location $LOCATION
@@ -130,8 +130,7 @@ az storage container create `
   --name $CONTAINER `
   --account-name $STORAGE_ACCOUNT
 
-# Display the storage account name (you'll need this!)
-Write-Host "Your storage account name is: $STORAGE_ACCOUNT"
+Write-Host "Backend storage created: $STORAGE_ACCOUNT in $RESOURCE_GROUP"
 ```
 
 **📝 Write down your storage account name!** You'll need it in Step 3.
@@ -171,10 +170,11 @@ Open `infra/envs/dev/main.tf` and find the backend block:
 ```hcl
 terraform {
   backend "azurerm" {
-    resource_group_name  = "terraform-state-rg"
-    storage_account_name = "tfstate[yourname]"  # ← Change this!
+    resource_group_name  = "contoso-tfstate-rg"
+    storage_account_name = "stcontosotfstate001"
     container_name       = "tfstate"
     key                  = "dev.terraform.tfstate"
+    use_azuread_auth     = true
   }
 }
 ```
@@ -187,9 +187,9 @@ Open `infra/envs/dev/dev.tfvars` and customize:
 
 ```hcl
 # Change these to your values
-organization_name = "mycompany"      # Your company/org name
-project_name      = "myproject"      # Your project name
-location          = "eastus"         # Azure region
+organization_name = "contoso"          # Your company/org name
+project_name      = "contoso"          # Your project name
+location          = "southeastasia"    # Azure region (closest to Indonesia)
 
 # Get your tenant ID by running: az account show --query tenantId -o tsv
 tenant_id = "12345678-1234-1234-1234-123456789012"  # Your Azure AD tenant
@@ -328,13 +328,13 @@ Terraform will perform the following actions:
 
   # azurerm_resource_group.dev will be created
   + resource "azurerm_resource_group" "dev" {
-      + name     = "myproject-rg-dev"
-      + location = "eastus"
+      + name     = "contoso-rg-dev"
+      + location = "southeastasia"
     }
 
   # azurerm_virtual_network.vnet will be created
   + resource "azurerm_virtual_network" "vnet" {
-      + name          = "myproject-vnet-dev"
+      + name          = "contoso-vnet-dev"
       + address_space = ["10.1.0.0/16"]
     }
 
@@ -433,7 +433,7 @@ Add AKS, Cosmos DB, or other services by editing `main.tf`:
 module "aks" {
   source = "../../modules/aks"
   
-  cluster_name = "myapp-aks-dev"
+  cluster_name = "contoso-aks-dev"
   location     = var.location
   
   # Use subnet from networking module

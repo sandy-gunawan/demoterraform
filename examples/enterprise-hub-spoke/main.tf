@@ -119,7 +119,7 @@ resource "azurerm_container_registry" "shared" {
 
   network_rule_set {
     default_action = "Deny"
-    
+
     virtual_network {
       action    = "Allow"
       subnet_id = module.hub_network.subnet_ids["shared-services-subnet"]
@@ -136,7 +136,7 @@ module "shared_cosmosdb" {
   resource_group_name = azurerm_resource_group.hub.name
   account_name        = "${var.organization_name}-shared-cosmos"
   location            = var.location
-  consistency_level = "Session"
+  consistency_level   = "Session"
 
   failover_locations = [
     {
@@ -151,8 +151,8 @@ module "shared_cosmosdb" {
     module.hub_network.subnet_ids["shared-services-subnet"]
   ]
 
-  backup_type               = "Continuous"
-  enable_automatic_failover = true
+  backup_type                     = "Continuous"
+  enable_automatic_failover       = true
   enable_multiple_write_locations = true
 
   sql_databases = {

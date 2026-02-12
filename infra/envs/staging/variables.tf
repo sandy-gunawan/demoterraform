@@ -5,19 +5,19 @@
 variable "organization_name" {
   description = "Organization name for resource naming"
   type        = string
-  default     = "myorg"
+  default     = "contoso"
 }
 
 variable "project_name" {
   description = "Name of the project"
   type        = string
-  default     = "myproject"
+  default     = "contoso"
 }
 
 variable "location" {
   description = "Azure region"
   type        = string
-  default     = "eastus"
+  default     = "southeastasia"
 }
 
 variable "tenant_id" {
@@ -86,13 +86,13 @@ variable "enable_key_vault" {
 variable "enable_nat_gateway" {
   description = "Deploy NAT Gateway for outbound traffic control"
   type        = bool
-  default     = false  # Staging: No
+  default     = false # Staging: No
 }
 
 variable "enable_private_endpoints" {
   description = "Use private endpoints instead of public access"
   type        = bool
-  default     = false  # Staging: No
+  default     = false # Staging: No
 }
 
 variable "enable_ddos_protection" {
@@ -104,13 +104,13 @@ variable "enable_ddos_protection" {
 variable "key_vault_purge_protection" {
   description = "Enable Key Vault purge protection (blocks deletion for 90 days)"
   type        = bool
-  default     = true  # Staging: Yes - protect secrets
+  default     = true # Staging: Yes - protect secrets
 }
 
 variable "network_acl_default_action" {
   description = "Default action for network ACLs (Allow = open, Deny = restricted)"
   type        = string
-  default     = "Deny"  # Staging: Tighter security
+  default     = "Deny" # Staging: Tighter security
 }
 
 # =============================================================================
@@ -121,19 +121,19 @@ variable "network_acl_default_action" {
 variable "enable_application_insights" {
   description = "Deploy Application Insights"
   type        = bool
-  default     = true  # Staging: Yes
+  default     = true # Staging: Yes
 }
 
 variable "enable_diagnostic_settings" {
   description = "Enable diagnostic settings on resources"
   type        = bool
-  default     = true  # Staging: Yes
+  default     = true # Staging: Yes
 }
 
 variable "log_retention_days" {
   description = "Log Analytics retention in days"
   type        = number
-  default     = 60  # Staging: Medium retention
+  default     = 60 # Staging: Medium retention
 }
 
 # =============================================================================
@@ -144,7 +144,7 @@ variable "log_retention_days" {
 variable "enable_auto_scaling" {
   description = "Enable auto-scaling for compute resources"
   type        = bool
-  default     = false  # Staging: No
+  default     = false # Staging: No
 }
 
 variable "enable_geo_redundancy" {
@@ -162,11 +162,11 @@ variable "enable_continuous_backup" {
 variable "aks_node_count" {
   description = "Number of AKS nodes (ignored if auto-scaling enabled)"
   type        = number
-  default     = 2  # Staging: 2 nodes for testing
+  default     = 2 # Staging: 2 nodes for testing
 }
 
 variable "aks_node_size" {
   description = "AKS node VM size"
   type        = string
-  default     = "Standard_D4s_v3"  # Staging: Medium size (4 vCPU, 16GB RAM) - Available in SE Asia
+  default     = "Standard_D4s_v3" # Staging: Medium size (4 vCPU, 16GB RAM) - Available in SE Asia
 }

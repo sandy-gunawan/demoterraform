@@ -33,7 +33,7 @@ resource "azurerm_cosmosdb_account" "db" {
   # Security features
   public_network_access_enabled     = var.public_network_access_enabled
   is_virtual_network_filter_enabled = var.enable_virtual_network_filter
-  
+
   dynamic "virtual_network_rule" {
     for_each = var.virtual_network_rules
     content {
@@ -67,7 +67,7 @@ resource "azurerm_cosmosdb_sql_database" "db" {
   name                = each.key
   resource_group_name = var.resource_group_name
   account_name        = azurerm_cosmosdb_account.db.name
-  
+
   # Autoscale or manual throughput
   dynamic "autoscale_settings" {
     for_each = each.value.autoscale_max_throughput != null ? [1] : []

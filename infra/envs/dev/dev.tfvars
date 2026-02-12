@@ -8,8 +8,9 @@
 # -----------------------------------------------------------------------------
 # Basic Configuration
 # -----------------------------------------------------------------------------
-organization_name = "mycompany"
-project_name      = "myapp"
+organization_name = "contoso"
+project_name      = "contoso"
+environment       = "dev"
 location          = "southeastasia" # Singapore - closest full-featured region to Indonesia
 
 # Azure AD Configuration
@@ -18,8 +19,8 @@ tenant_id = "00000000-0000-0000-0000-000000000000" # TODO: Replace with your ten
 
 # Governance
 cost_center    = "Engineering-Dev"
-owner_email    = "devops@mycompany.com"
-repository_url = "https://dev.azure.com/myorg/terraform-infrastructure"
+owner_email    = "devops@contoso.com"
+repository_url = "https://dev.azure.com/contoso/terraform-infrastructure"
 
 # -----------------------------------------------------------------------------
 # Feature Toggles - What to deploy

@@ -128,7 +128,7 @@ module "cosmosdb" {
   resource_group_name = azurerm_resource_group.app.name
   account_name        = "${var.project_name}${var.app_name}cosmos"
   location            = var.location
-  consistency_level = var.cosmos_consistency_level
+  consistency_level   = var.cosmos_consistency_level
 
   # Multi-region configuration
   failover_locations = var.cosmos_failover_locations
@@ -142,9 +142,9 @@ module "cosmosdb" {
   ]
 
   # Backup configuration
-  backup_type                = var.cosmos_backup_type
-  backup_storage_redundancy  = "Geo"
-  enable_automatic_failover  = true
+  backup_type                     = var.cosmos_backup_type
+  backup_storage_redundancy       = "Geo"
+  enable_automatic_failover       = true
   enable_multiple_write_locations = var.cosmos_multi_region_writes
 
   # Database and containers
@@ -170,15 +170,15 @@ module "cosmosdb" {
       partition_key_paths      = ["/category"]
       partition_key_version    = 2
       autoscale_max_throughput = 2000
-      analytical_storage_ttl   = -1  # Enable analytical store
+      analytical_storage_ttl   = -1 # Enable analytical store
     }
 
     "orders" = {
       database_name            = "AppDatabase"
-      partition_key_paths      = ["/customerId", "/year"]  # Hierarchical
+      partition_key_paths      = ["/customerId", "/year"] # Hierarchical
       partition_key_version    = 2
       autoscale_max_throughput = 10000
-      default_ttl              = 63072000  # 2 years
+      default_ttl              = 63072000 # 2 years
     }
 
     "sessions" = {
@@ -186,7 +186,7 @@ module "cosmosdb" {
       partition_key_paths      = ["/sessionId"]
       partition_key_version    = 2
       autoscale_max_throughput = 1000
-      default_ttl              = 86400  # 24 hours
+      default_ttl              = 86400 # 24 hours
     }
   }
 
@@ -245,10 +245,10 @@ locals {
   common_tags = merge(
     var.tags,
     {
-      Environment  = var.environment
-      Application  = var.app_name
-      ManagedBy    = "Terraform"
-      Example      = "AKS-Application"
+      Environment = var.environment
+      Application = var.app_name
+      ManagedBy   = "Terraform"
+      Example     = "AKS-Application"
     }
   )
 }

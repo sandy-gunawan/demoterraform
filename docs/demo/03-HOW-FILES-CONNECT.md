@@ -60,8 +60,8 @@ infra/global/
 
 locals {
   naming = {
-    organization = var.organization_name    # e.g., "mycompany"
-    project      = var.project_name         # e.g., "myapp"
+    organization = var.organization_name    # e.g., "contoso"
+    project      = var.project_name         # e.g., "contoso"
     environment  = var.environment           # e.g., "dev"
     location     = var.location              # e.g., "southeastasia"
   }

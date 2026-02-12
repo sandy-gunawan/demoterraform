@@ -35,7 +35,7 @@ output "log_analytics_workspace_id" {
 
 output "deployment_summary" {
   description = "Landing Zone deployment summary"
-  value = <<-EOT
+  value       = <<-EOT
     ========================================
     Azure Landing Zone Deployment Complete
     ========================================

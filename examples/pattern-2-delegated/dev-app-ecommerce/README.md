@@ -25,13 +25,14 @@ This folder contains Terraform configuration for the e-commerce application in d
 
 ## 📋 Prerequisites
 
-**No dependencies on other teams!** E-commerce app creates its own networking and AKS.
+**Platform team must deploy Pattern 1 FIRST!** E-commerce reads its VNet from Platform.
 
 Required:
 - ✅ Azure subscription access
-- ✅ Terraform >= 1.6.0
+- ✅ Terraform >= 1.5.0
 - ✅ Azure CLI logged in (`az login`)
-- ✅ Backend storage account (for state file)
+- ✅ Backend storage account (`stcontosotfstate001` in `contoso-tfstate-rg`)
+- ✅ Pattern 1 deployed (creates VNet `vnet-contoso-dev-ecommerce-001`)
 - ✅ kubectl installed (for AKS access)
 
 Check your access:

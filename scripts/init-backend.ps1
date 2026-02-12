@@ -10,11 +10,12 @@ Write-Host "Terraform Backend Initialization" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Configuration
-$RESOURCE_GROUP_NAME = "terraform-state-rg"
-$STORAGE_ACCOUNT_NAME = "tfstate$($env:USERNAME)$(Get-Random -Maximum 9999)"
+# Configuration - MUST match backend.tf in all environments!
+# See: infra/envs/dev/backend.tf, examples/pattern-2-delegated/*/main.tf
+$RESOURCE_GROUP_NAME = "contoso-tfstate-rg"
+$STORAGE_ACCOUNT_NAME = "stcontosotfstate001"
 $CONTAINER_NAME = "tfstate"
-$LOCATION = "eastus"
+$LOCATION = "southeastasia"
 $SOFT_DELETE_DAYS = 90
 
 Write-Host "Configuration:"
@@ -196,4 +197,9 @@ Write-Host "   az storage account network-rule add ``"
 Write-Host "     --account-name $STORAGE_ACCOUNT_NAME ``"
 Write-Host "     --resource-group $RESOURCE_GROUP_NAME ``"
 Write-Host "     --subnet <AGENT_SUBNET_RESOURCE_ID>"
+Write-Host ""
+Write-Host "5. State file keys used in this framework:" -ForegroundColor Yellow
+Write-Host "   Pattern 1 (Platform):  dev.terraform.tfstate"
+Write-Host "   Pattern 2 (CRM):       dev-app-crm.tfstate"
+Write-Host "   Pattern 2 (E-commerce): dev-app-ecommerce.tfstate"
 Write-Host ""

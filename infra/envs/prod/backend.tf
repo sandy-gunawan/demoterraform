@@ -9,34 +9,28 @@
 # 4. Restrict access to the storage account (limit who can modify prod)
 # 5. Enable storage account firewall (only allow Azure DevOps/CI-CD)
 #
-# OPTIONAL: Separate Storage Account for Production
-# For extra security, you can use a different storage account for production:
+# BACKEND NAMING (MUST match across all environments):
+#   Resource Group:    contoso-tfstate-rg
+#   Storage Account:   stcontosotfstate001
+#   Container:         tfstate
 #
-#   az storage account create \
-#     --name tfstateprodmycompany \
-#     --resource-group terraform-state-rg \
-#     --location eastus \
-#     --sku Standard_GRS \    # Geo-redundant for production!
-#     --allow-blob-public-access false
-#
-#   # Enable soft delete (recover deleted state)
-#   az storage blob service-properties delete-policy update \
-#     --account-name tfstateprodmycompany \
-#     --enable true \
-#     --days-retained 30
+# STATE FILE KEYS:
+#   dev.terraform.tfstate       <- Dev environment
+#   staging.terraform.tfstate   <- Staging environment
+#   prod.terraform.tfstate      <- THIS file (Production)
+#   dev-app-crm.tfstate         <- CRM team (Pattern 2)
+#   dev-app-ecommerce.tfstate   <- E-commerce team (Pattern 2)
 
 terraform {
   backend "azurerm" {
-    # Same storage account (or use separate for production)
-    resource_group_name  = "terraform-state-rg"
-    storage_account_name = "tfstatemycompany"  # TODO: Replace with your actual name
+    resource_group_name  = "contoso-tfstate-rg"
+    storage_account_name = "stcontosotfstate001"
     container_name       = "tfstate"
 
     # DIFFERENT state file for production!
     key = "prod.terraform.tfstate"
 
-    # Recommended for production: Use Azure AD authentication
-    # (instead of storage account access keys)
-    # use_azuread_auth = true
+    # Azure AD authentication (more secure than storage keys)
+    use_azuread_auth = true
   }
 }

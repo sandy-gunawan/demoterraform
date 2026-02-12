@@ -25,6 +25,17 @@
 
 terraform {
   required_version = ">= 1.5.0"
+
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3.80"
+    }
+    azuread = {
+      source  = "hashicorp/azuread"
+      version = "~> 2.45.0"
+    }
+  }
 }
 
 # =============================================================================
@@ -48,7 +59,7 @@ provider "azuread" {}
 # RESOURCE GROUP - Always created
 # =============================================================================
 resource "azurerm_resource_group" "main" {
-  name     = "${var.project_name}-rg-dev"
+  name     = "contoso-platform-rg-${var.environment}"
   location = var.location
   tags     = module.global_standards.common_tags
 }
@@ -61,7 +72,7 @@ module "global_standards" {
 
   organization_name = var.organization_name
   project_name      = var.project_name
-  environment       = "dev"
+  environment       = var.environment
   location          = var.location
   cost_center       = var.cost_center
   owner_email       = var.owner_email
@@ -75,7 +86,7 @@ module "networking" {
   source = "../../modules/networking"
 
   resource_group_name = azurerm_resource_group.main.name
-  network_name        = "${var.project_name}-vnet-dev"
+  network_name        = "vnet-${var.project_name}-${var.environment}-001"
   location            = var.location
   address_space       = ["10.1.0.0/16"]
 
@@ -134,7 +145,7 @@ module "networking_crm" {
   source = "../../modules/networking"
 
   resource_group_name = azurerm_resource_group.main.name
-  network_name        = "vnet-${var.project_name}-dev-crm-001"
+  network_name        = "vnet-${var.project_name}-${var.environment}-crm-001"
   location            = var.location
   address_space       = ["10.2.0.0/16"]
 
@@ -191,7 +202,7 @@ module "networking_ecommerce" {
   source = "../../modules/networking"
 
   resource_group_name = azurerm_resource_group.main.name
-  network_name        = "vnet-${var.project_name}-dev-ecommerce-001"
+  network_name        = "vnet-${var.project_name}-${var.environment}-ecommerce-001"
   location            = var.location
   address_space       = ["10.3.0.0/16"]
 
@@ -247,7 +258,7 @@ module "networking_ecommerce" {
 # LOG ANALYTICS - Always created (need to see what's happening)
 # =============================================================================
 resource "azurerm_log_analytics_workspace" "main" {
-  name                = "${var.project_name}-logs-dev"
+  name                = "${var.project_name}-logs-${var.environment}"
   location            = var.location
   resource_group_name = azurerm_resource_group.main.name
   sku                 = "PerGB2018"

@@ -213,11 +213,11 @@ Services that don't depend on region location:
 ## Important Notes
 
 ### 1. State Storage
-The Terraform state storage (`tfstatecontosoid`) should ALSO be in Southeast Asia:
+The Terraform state storage (`stcontosotfstate001`) should ALSO be in Southeast Asia:
 ```bash
 az storage account create \
-  --name tfstatecontosoid \
-  --resource-group terraform-state-rg \
+  --name stcontosotfstate001 \
+  --resource-group contoso-tfstate-rg \
   --location southeastasia \
   --sku Standard_LRS
 ```
