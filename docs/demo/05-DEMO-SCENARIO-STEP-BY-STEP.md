@@ -1,12 +1,17 @@
 # Document 05: Demo Scenario - Step by Step
 
+> **🎉 UPDATED:** Pattern 2 now creates **separate VNets**! No dependencies on Platform team!  
+> CRM (10.2.x.x), E-commerce (10.3.x.x) - fully independent deployments.
+
+---
+
 ## Scenario Overview
 
 You will demo the following scenario to the client:
 
 ### The Story
 
-> "We have a company called **Contoso Indonesia** with multiple development teams. We'll show how all teams use the same Terraform framework to deploy their infrastructure consistently."
+> "We have a company called **Contoso Indonesia** with multiple development teams. We'll show how all teams use the same Terraform framework to deploy their infrastructure consistently - some using shared resources (Pattern 1), others fully independent (Pattern 2)."
 
 ### Cast of Characters
 
@@ -347,27 +352,38 @@ Azure Resources (after both teams):
 
 ---
 
-## ACT 3: Pattern 2 Demo - Delegated Per-Team
+## ACT 3: Pattern 2 Demo - Delegated Per-Team (FULLY INDEPENDENT!)
 
 ### Setup Context
 
-> **Explain to client**: "Now we'll show Pattern 2. This is for organizations where teams need more independence. Each team has their own folder and their own Terraform state file. They can deploy without going through the Platform team."
+> **Explain to client**: "Now we'll show Pattern 2. This is for organizations where teams need **maximum independence**. Each team has:
+> - Their own folder
+> - Their own Terraform state file  
+> - Their own VNet and networking (10.2.x for CRM, 10.3.x for E-commerce)
+> - They can deploy **without ANY dependencies** on the Platform team or Pattern 1!"
 
-### Prerequisite: Platform Team's Shared Infrastructure
+### 🎯 Key Point: NO Prerequisites Needed!
 
-Before Pattern 2 teams can work, the platform team must have deployed the shared networking. This was done in ACT 1.
+**OLD approach (deprecated):** Pattern 2 teams shared Pattern 1's VNet  
+**NEW approach (current):** Each Pattern 2 team creates their OWN VNet!
 
-For the Pattern 2 examples, the shared infra naming follows this convention:
-- VNet: `vnet-contoso-dev-001`
-- Resource Group: `rg-contoso-dev-network-001`
-- AKS Subnet: `snet-contoso-dev-aks-001`
-- App Subnet: `snet-contoso-dev-app-001`
+```
+Pattern 1: VNet 10.1.0.0/16 (Optional! Pattern 2 doesn't need it)
+CRM Team: VNet 10.2.0.0/16 (Completely isolated!)
+E-commerce: VNet 10.3.0.0/16 (Completely isolated!)
+```
+
+**Benefits:**
+- ✅ No coordination needed with Platform team
+- ✅ Deploy in ANY order (Pattern 2 can deploy FIRST!)
+- ✅ Perfect for independent CI/CD pipelines
+- ✅ Network isolation by default
 
 ---
 
 ### Scene 3A: Team Gamma (CRM) - Dewi Deploys Independently
 
-**Story**: Dewi (CRM team lead) doesn't need to ask Andi. She manages her own folder.
+**Story**: Dewi (CRM team lead) deploys her team's infrastructure. No need to ask Platform team!
 
 ### Step 3A.1: Navigate to CRM Folder
 
@@ -378,12 +394,21 @@ cd examples/pattern-2-delegated/dev-app-crm
 
 ### Step 3A.2: Review What Will Be Created
 
-The CRM team's `main.tf` creates:
-1. **Resource Group** - `rg-contoso-dev-crm-001` (their own!)
-2. **App Service** - `app-contoso-dev-crm-001` (Node.js web app)
-3. **CosmosDB** - `cosmos-contoso-dev-crm-001` (customer data)
-4. **Key Vault** - `kv-contoso-dev-crm` (secrets)
-5. **Managed Identity** - `id-contoso-dev-crm-001` (secure auth)
+The CRM team's `main.tf` creates EVERYTHING (networking + apps):
+
+**Networking (CRM's Own):**
+1. **VNet** - `vnet-contoso-dev-crm-001` (10.2.0.0/16)
+2. **Subnets**:
+   - app-subnet: 10.2.1.0/24 (256 IPs for App Services)
+   - db-subnet: 10.2.2.0/24 (256 IPs for databases)
+3. **NSGs** - Security rules for HTTP/HTTPS
+
+**Application Resources:**
+4. **Resource Group** - `rg-contoso-dev-crm-001`
+5. **App Service** - `app-contoso-dev-crm-001` (Node.js web app)
+6. **CosmosDB** - `cosmos-contoso-dev-crm-001` (customer data)
+7. **Key Vault** - `kv-contoso-dev-crm` (secrets)
+8. **Managed Identity** - `id-contoso-dev-crm-001` (secure auth)
 
 ### Step 3A.3: Configure and Deploy
 
@@ -395,25 +420,42 @@ terraform init
 terraform plan -var-file="dev.tfvars"
 
 # Expected output:
-# Plan: 10 to add, 0 to change, 0 to destroy.
-# Resources are ALL in the CRM team's own resource group
+# Plan: 15 to add, 0 to change, 0 to destroy.
+# + VNet (10.2.0.0/16)
+# + 2 Subnets
+# + NSG
+# + Resource Group
+# + App Service (Plan + Web App)
+# + CosmosDB (Account + Database + Containers)
+# + Key Vault
+# + Managed Identity
 
 # Deploy!
 terraform apply -var-file="dev.tfvars"
 ```
 
-> **Explain to client**: "Notice the `backend.tf` has a different state key: `dev-app-crm.tfstate`. This means the CRM team's state is completely separate from the platform team's state. CRM team can destroy their resources without affecting anything else!"
+> **Explain to client**: "Notice the `backend.tf` has state key `dev-app-crm.tfstate`. This means the CRM team's state is completely separate. CRM can destroy their resources without affecting anyone else!"
 
-### CRM Team's Resources
+### CRM Team's Resources (Complete Independence!)
 
 ```
 State file: dev-app-crm.tfstate (SEPARATE!)
 
 Azure Resources:
-├── Resource Group: rg-contoso-dev-crm-001          [CRM Team owns]
+├── Resource Group: rg-contoso-dev-crm-001          [CRM Team owns EVERYTHING]
+│   
+│   ### NETWORKING (CRM's Own - 10.2.0.0/16)
+│   ├── VNet: vnet-contoso-dev-crm-001
+│   │   ├── app-subnet: 10.2.1.0/24
+│   │   └── db-subnet: 10.2.2.0/24
+│   ├── NSG: app-nsg
+│   │   ├── Allow HTTPS (port 443)
+│   │   └── Allow HTTP (port 80)
+│   
+│   ### APPLICATIONS
 │   ├── App Service Plan: asp-contoso-dev-crm-001
 │   ├── Web App: app-contoso-dev-crm-001
-│   │   └── Connected to: shared VNet (via data source)
+│   │   └── Connected to: CRM's own VNet (app-subnet)
 │   ├── CosmosDB: cosmos-contoso-dev-crm-001
 │   │   ├── Database: crm-db
 │   │   ├── Container: customers (/companyId)
@@ -428,7 +470,7 @@ Azure Resources:
 
 ### Scene 3B: Team Delta (E-commerce) - Eka Deploys Simultaneously
 
-**Story**: AT THE SAME TIME Dewi is deploying CRM, Eka deploys e-commerce. No conflicts!
+**Story**: AT THE SAME TIME Dewi is deploying CRM, Eka deploys e-commerce. No conflicts because they're in separate VNets!
 
 ### Step 3B.1: Navigate to E-commerce Folder
 
@@ -439,12 +481,21 @@ cd examples/pattern-2-delegated/dev-app-ecommerce
 
 ### Step 3B.2: Review Configuration
 
-The E-commerce team's `main.tf` creates:
-1. **Resource Group** - `rg-contoso-dev-ecommerce-001`
-2. **AKS Cluster** (dedicated) OR reference shared AKS
-3. **CosmosDB** - `cosmos-contoso-dev-ecommerce-001` (product catalog + orders)
-4. **Key Vault** - `kv-contoso-dev-ecommerce`
-5. **Managed Identity** - `id-contoso-dev-ecommerce-001`
+The E-commerce team's `main.tf` creates EVERYTHING (networking + apps):
+
+**Networking (E-commerce's Own):**
+1. **VNet** - `vnet-contoso-dev-ecommerce-001` (10.3.0.0/16)
+2. **Subnets**:
+   - aks-subnet: 10.3.1.0/24 (256 IPs for AKS nodes)
+   - db-subnet: 10.3.2.0/24 (256 IPs for databases)
+3. **NSGs** - Security rules for AKS traffic
+
+**Application Resources:**
+4. **Resource Group** - `rg-contoso-dev-ecommerce-001`
+5. **AKS Cluster** (dedicated) - `aks-contoso-dev-ecommerce-001`
+6. **CosmosDB** - `cosmos-contoso-dev-ecommerce-001` (products, orders, inventory)
+7. **Key Vault** - `kv-contoso-dev-ecommerce`
+8. **Managed Identity** - `id-contoso-dev-ecommerce-001`
 
 ### Step 3B.3: Deploy
 
@@ -454,26 +505,51 @@ terraform init
 
 # Deploy!
 terraform plan -var-file="dev.tfvars"
+
+# Expected output:
+# Plan: 18 to add, 0 to change, 0 to destroy.
+# + VNet (10.3.0.0/16)
+# + 2 Subnets
+# + NSG
+# + Resource Group
+# + AKS Cluster (2 nodes)
+# + CosmosDB (Account + Database + 3 Containers)
+# + Key Vault
+# + Managed Identity
+
 terraform apply -var-file="dev.tfvars"
 ```
 
-### E-commerce Team's Resources
+### E-commerce Team's Resources (Complete Independence!)
 
 ```
 State file: dev-app-ecommerce.tfstate (SEPARATE!)
 
 Azure Resources:
-├── Resource Group: rg-contoso-dev-ecommerce-001    [E-commerce Team owns]
-│   ├── AKS: aks-contoso-dev-ecommerce-001
-│   │   └── Connected to: shared VNet (via data source)
+├── Resource Group: rg-contoso-dev-ecommerce-001    [E-commerce Team owns EVERYTHING]
+│   
+│   ### NETWORKING (E-commerce's Own - 10.3.0.0/16)
+│   ├── VNet: vnet-contoso-dev-ecommerce-001
+│   │   ├── aks-subnet: 10.3.1.0/24
+│   │   └── db-subnet: 10.3.2.0/24
+│   ├── NSG: aks-nsg
+│   │   ├── Allow HTTPS (port 443)
+│   │   └── Allow HTTP (port 80)
+│   
+│   ### APPLICATIONS
+│   ├── AKS Cluster: aks-contoso-dev-ecommerce-001
+│   │   ├── Node Count: 2-5 (autoscale)
+│   │   ├── VM Size: Standard_D2s_v3
+│   │   └── Connected to: E-commerce's own VNet (aks-subnet)
 │   ├── CosmosDB: cosmos-contoso-dev-ecommerce-001
 │   │   ├── Database: ecommerce-db
 │   │   ├── Container: products (/categoryId)
-│   │   ├── Container: orders (/userId)
+│   │   ├── Container: orders (/customerId)
 │   │   └── Container: inventory (/warehouseId)
 │   ├── Key Vault: kv-contoso-dev-ecommerce
-│   │   └── Secret: cosmos-connection-string
+│   │   └── Secrets: AKS credentials, CosmosDB keys
 │   └── Managed Identity: id-contoso-dev-ecommerce-001
+│       └── Has access to: Key Vault, CosmosDB, AKS
 ```
 
 ---
@@ -488,12 +564,12 @@ Azure Subscription
 ├── terraform-state-rg (State Storage)
 │   └── tfstatecontosoid (Storage Account)
 │       └── tfstate (Container)
-│           ├── dev.terraform.tfstate           ← Platform (ACT 1 + 2)
+│           ├── dev.terraform.tfstate           ← Pattern 1 (ACT 1 + 2)
 │           ├── dev-app-crm.tfstate             ← CRM Team (ACT 3A)
 │           └── dev-app-ecommerce.tfstate       ← E-commerce Team (ACT 3B)
 │
-├── contoso-platform-rg-dev (Pattern 1 - Shared)
-│   ├── VNet + Subnets
+├── contoso-platform-rg-dev (Pattern 1 - Shared Resources)
+│   ├── VNet: 10.1.0.0/16 + Subnets
 │   ├── Log Analytics
 │   ├── Key Vault
 │   ├── AKS (Team Alpha)
@@ -501,13 +577,17 @@ Azure Subscription
 │   ├── Container App Env (Team Beta)
 │   └── PostgreSQL (Team Beta)
 │
-├── rg-contoso-dev-crm-001 (Pattern 2 - CRM)
+├── rg-contoso-dev-crm-001 (Pattern 2 - CRM's Independent Network)
+│   ├── VNet: 10.2.0.0/16 + Subnets
+│   ├── NSG
 │   ├── App Service
 │   ├── CosmosDB
 │   ├── Key Vault
 │   └── Managed Identity
 │
-└── rg-contoso-dev-ecommerce-001 (Pattern 2 - E-commerce)
+└── rg-contoso-dev-ecommerce-001 (Pattern 2 - E-commerce's Independent Network)
+    ├── VNet: 10.3.0.0/16 + Subnets
+    ├── NSG
     ├── AKS
     ├── CosmosDB
     ├── Key Vault
@@ -529,10 +609,11 @@ Azure Subscription
 
 | Question | Answer |
 |----------|--------|
-| "What if Team Alpha needs to change AKS settings?" | "In Pattern 1, they ask Andi. In Pattern 2, they change their own `dev.tfvars`." |
-| "Can two teams deploy to the same resource group?" | "Pattern 1: Yes, they share one RG. Pattern 2: No, each team has their own RG." |
-| "What if someone accidentally deletes the VNet?" | "In Pattern 1, it's protected by `prevent_deletion_if_contains_resources = true`. In Pattern 2, the VNet is in a separate state that app teams can't modify." |
-| "How do we move from Pattern 1 to Pattern 2?" | "Gradually. Start with shared infra in Pattern 1, then extract app-specific resources to Pattern 2 folders." |
+| "What if Team Alpha needs to change AKS settings?" | "In Pattern 1, they ask Andi. In Pattern 2, they change their own `dev.tfvars` - complete independence!" |
+| "Can two teams deploy to the same resource group?" | "Pattern 1: Yes, they share one RG. Pattern 2: No, each team has their own RG AND own VNet." |
+| "What if someone accidentally deletes a VNet?" | "Pattern 1: Protected by `prevent_deletion_if_contains_resources = true`. Pattern 2: Each team owns their VNet (10.2.x, 10.3.x) - isolated, can't affect others!" |
+| "How do Pattern 2 teams communicate if needed?" | "By default, isolated. Can add VNet peering if cross-team communication needed (advanced topic)." |
+| "How do we move from Pattern 1 to Pattern 2?" | "Gradually. Start with shared infra in Pattern 1, then teams extract to Pattern 2 folders with own VNets." |
 | "What about production?" | "Same framework! Just change `dev.tfvars` to `prod.tfvars` with stronger settings (more nodes, encryption, private endpoints, etc.)" |
 
 ---
