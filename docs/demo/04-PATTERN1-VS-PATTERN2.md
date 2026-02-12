@@ -434,8 +434,8 @@ terraform apply -var-file="dev.tfvars"
 | **Files to create** | 0 (reuse existing) | 4-5 new files |
 | **State file** | `dev.terraform.tfstate` | `dev-shared-landing-zone.tfstate` |
 | **Confusing?** | A bit (toggles can be confusing) | No (clear purpose) |
-| **Can coexist with Pattern 1?** | ⚠️ Must choose one or the other | ✅ Yes, completely separate |
-| **Best for** | Quick start, small teams | Large orgs, clear separation |
+| **Can create Pattern 1 apps?** | ✅ Yes (enable toggles) | ❌ No (networking only) |
+| **Best for** | Demo, teams using both patterns | Large orgs wanting clear separation |
 
 ---
 
@@ -467,15 +467,48 @@ Result in Azure:
 
 **Q: "If I use Pattern 1 folder with AKS enabled, won't AKS be created?"**
 
-**A**: NO! Only if `enable_aks = true` in your tfvars. If you set `enable_aks = false`, the AKS module is **skipped entirely** (count = 0). It's like the code doesn't exist.
+**A**: YES, if `enable_aks = true`. But if you set `enable_aks = false`, the AKS module is **skipped entirely** (count = 0). It's like the code doesn't exist.
 
-**Q: "So Platform team can switch between Pattern 1 and Pattern 2 in the same folder?"**
+**Q: "Can I use Pattern 1 AND Pattern 2 at the same time?"**
 
-**A**: **NO!** You must choose one:
-- **Pattern 1**: `enable_aks = true` → Platform team manages AKS for everyone
-- **Pattern 2**: `enable_aks = false` → App teams manage their own AKS
+**A**: **YES!** This is the most common real-world scenario. Here's what you CAN do:
 
-You can't have BOTH Pattern 1's AKS AND Pattern 2's AKS in the same environment. Pick one.
+```
+✅ ALLOWED - Pattern 1 and Pattern 2 Together:
+----------------------------------------------------
+Pattern 1 (infra/envs/dev/):
+  enable_aks = true        → Creates 1 shared AKS cluster
+  enable_cosmosdb = true   → Creates 1 shared CosmosDB
+  Creates: VNet, Subnets, Logs (SHARED by everyone)
+
+Pattern 2 (examples/pattern-2-delegated/dev-app-crm/):
+  Uses: data block to read Pattern 1's VNet
+  Creates: Own App Service, Own CosmosDB (separate from Pattern 1!)
+
+Pattern 2 (examples/pattern-2-delegated/dev-app-ecommerce/):
+  Uses: data block to read Pattern 1's VNet
+  Creates: Own AKS cluster (separate from Pattern 1!), Own CosmosDB
+
+Result: 
+  - 1 VNet shared by everyone ✅
+  - 2 AKS clusters (1 shared from Pattern 1, 1 for e-commerce) ✅
+  - 3 CosmosDB instances (1 shared, 1 for CRM, 1 for e-commerce) ✅
+```
+
+**The key rule:** For networking (VNet) - everyone shares. For apps (AKS, CosmosDB) - Pattern 1 creates shared instances, Pattern 2 creates independent instances. Both coexist!
+
+**Q: "What if I want ONLY Pattern 2 (no Pattern 1 apps)?"**
+
+**A**: Still use Pattern 1's `infra/envs/dev/` folder, but set ALL app toggles to false:
+
+```hcl
+# Platform team creates ONLY networking (no apps)
+enable_aks = false
+enable_cosmosdb = false
+enable_container_apps = false
+
+# Then Pattern 2 teams create their own apps
+```
 
 ### Step 2: App Teams Reference the Shared Infrastructure
 
@@ -1117,6 +1150,322 @@ Set up Azure Monitor alerts:
 Alert: "Shared VNet Modified"
 Trigger: Any change to vnet-contoso-dev-001
 Action: Email all app team leads
+```
+
+---
+
+## VNet Impact: The Critical Shared Component
+
+### Understanding the VNet Dependency
+
+When using Pattern 1 and Pattern 2 together, the **VNet is the glue** that connects everything. This creates a **strong dependency** that you must manage carefully.
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                     Single Shared VNet                          │
+│                  (Created by Pattern 1)                         │
+│                                                                 │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐        │
+│  │ Pattern 1    │  │ Pattern 2    │  │ Pattern 2    │        │
+│  │ AKS (shared) │  │ CRM App      │  │ E-com AKS    │        │
+│  │              │  │ Service      │  │ (dedicated)  │        │
+│  └───────┬──────┘  └───────┬──────┘  └───────┬──────┘        │
+│          │                 │                 │                │
+│          └─────────────────┼─────────────────┘                │
+│                            │                                   │
+│                    All use same subnets                        │
+│                    All share same NSG rules                    │
+│                    All in same IP address space                │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### VNet Impact Matrix
+
+| Change | Pattern 1 Impact | Pattern 2 Impact | Risk Level | Recovery Time |
+|--------|------------------|------------------|------------|---------------|
+| **Add new subnet** | ✅ No impact | ✅ No impact (unless they need it) | 🟢 Low | N/A |
+| **Delete unused subnet** | ✅ No impact | ✅ No impact (if not using it) | 🟢 Low | N/A |
+| **Rename subnet** | ⚠️ Terraform will recreate | ❌ All apps using it break | 🔴 Critical | 1-4 hours |
+| **Change subnet CIDR** | ⚠️ Brief outage | ⚠️ Brief outage | 🟡 Medium | 5-30 minutes |
+| **Add NSG rule** | ✅ Applies automatically | ✅ Applies automatically | 🟢 Low | Instant |
+| **Delete VNet** | 💥 Entire environment destroyed | 💥 All apps fail | 🔴 Critical | 4-8 hours+ |
+| **Add VNet peering** | ✅ More connectivity | ✅ More connectivity | 🟢 Low | Instant |
+| **Change DNS servers** | ⚠️ All pods/apps affected | ⚠️ All apps affected | 🟡 Medium | Instant |
+
+### Critical VNet Scenarios Explained
+
+#### Scenario 1: Platform Team Renames a Subnet
+
+**Initial State:**
+```hcl
+# Pattern 1 creates:
+subnets = {
+  "aks-subnet" = { address_prefixes = ["10.1.1.0/24"] }
+}
+
+# Pattern 2 CRM references:
+data "azurerm_subnet" "app_service" {
+  name = "aks-subnet"  ← Works fine
+}
+```
+
+**Platform team changes:**
+```hcl
+# Pattern 1 changes to:
+subnets = {
+  "kubernetes-subnet" = { address_prefixes = ["10.1.1.0/24"] }  # RENAMED!
+}
+
+# terraform apply
+```
+
+**What happens:**
+1. Terraform destroys old subnet "aks-subnet"
+2. Creates new subnet "kubernetes-subnet"
+3. **Pattern 1 AKS cluster gets new subnet** (brief downtime)
+4. **Pattern 2 CRM app immediately breaks:**
+   ```
+   Error: data.azurerm_subnet.app_service: subnet "aks-subnet" not found
+   ```
+
+**Impact severity:**
+- 🔴 **Critical**: All Pattern 2 apps using this subnet fail immediately
+- 💥 **Downtime**: Until Pattern 2 teams update their code
+- 📞 **Coordination required**: Must notify ALL Pattern 2 teams BEFORE making change
+
+**Prevention:**
+```hcl
+# Use Terraform moved blocks (requires Terraform 1.1+):
+moved {
+  from = azurerm_subnet.subnets["aks-subnet"]
+  to   = azurerm_subnet.subnets["kubernetes-subnet"]
+}
+```
+
+#### Scenario 2: IP Address Space Exhaustion
+
+**Problem:**
+```
+Pattern 1 uses:
+- aks-subnet: 10.1.1.0/24 (254 IPs)
+- app-subnet: 10.1.2.0/24 (254 IPs)
+
+Pattern 2 CRM team: Uses app-subnet (needs 10 IPs)
+Pattern 2 E-commerce: Uses app-subnet (needs 10 IPs)
+Pattern 2 Marketing: Uses app-subnet (needs 10 IPs)
+... 20 more Pattern 2 teams ...
+
+Result: app-subnet runs out of IPs! ❌
+```
+
+**Solution: Plan subnet sizes upfront**
+```hcl
+# Better subnet allocation:
+subnets = {
+  "aks-subnet"           = { address_prefixes = ["10.1.0.0/22"] }   # 1024 IPs (large)
+  "pattern1-app-subnet"  = { address_prefixes = ["10.1.4.0/24"] }   # 256 IPs (Pattern 1 apps)
+  "pattern2-app-subnet"  = { address_prefixes = ["10.1.5.0/23"] }   # 512 IPs (Pattern 2 apps)
+  "pattern2-db-subnet"   = { address_prefixes = ["10.1.7.0/24"] }   # 256 IPs (Pattern 2 databases)
+}
+```
+
+**Rule of thumb:**
+- AKS: `/22` or larger (1000+ IPs per cluster)
+- App Services: `/24` (256 IPs) per 50 apps
+- Databases: `/24` (256 IPs) per 100 databases
+
+#### Scenario 3: NSG Rule Affects Everyone
+
+**Scenario:**
+```hcl
+# Platform team adds security rule:
+network_security_groups = {
+  "app-nsg" = {
+    security_rules = {
+      "block-rdp" = {  # NEW RULE - Block RDP for security
+        priority                   = 100
+        direction                  = "Inbound"
+        access                     = "Deny"
+        protocol                   = "Tcp"
+        destination_port_range     = "3389"
+      }
+    }
+  }
+}
+```
+
+**Impact:**
+- ✅ Pattern 1 apps: No impact (shouldn't use RDP anyway)
+- ✅ Pattern 2 CRM: No impact (RDP not needed)
+- ❌ Pattern 2 Troubleshooting team: Can't RDP to debug (but that's the point!)
+
+**Lesson:** NSG rules affect EVERYONE on that subnet. Communicate before adding restrictive rules!
+
+#### Scenario 4: Multiple AKS Clusters, One VNet
+
+**Configuration:**
+```
+VNet: 10.1.0.0/16
+
+Pattern 1 AKS (shared):
+  - aks-subnet: 10.1.1.0/24
+  - Nodes: 3-10 nodes
+  - Used by: Team Alpha, Team Beta
+
+Pattern 2 E-commerce AKS (dedicated):
+  - ecommerce-aks-subnet: 10.1.2.0/24
+  - Nodes: 2-5 nodes
+  - Used by: E-commerce team only
+
+Pattern 2 Marketing AKS (dedicated):
+  - marketing-aks-subnet: 10.1.3.0/24
+  - Nodes: 1-3 nodes
+  - Used by: Marketing team only
+```
+
+**VNet capacity check:**
+```
+Total VNet: 10.1.0.0/16 = 65,536 IPs
+
+Used:
+  - aks-subnet: 256 IPs
+  - ecommerce-aks-subnet: 256 IPs
+  - marketing-aks-subnet: 256 IPs
+  - app-subnet: 256 IPs
+  Total: 1,024 IPs
+
+Available: 64,512 IPs (plenty of room!) ✅
+```
+
+**Risk:** If each Pattern 2 team creates their own AKS cluster, you could have 20+ AKS clusters in ONE VNet. This works but:
+- 💰 Cost: 20 AKS clusters = $1,500+/month management fees alone
+- 🔧 Complexity: Hard to manage
+- 📊 Monitoring: Need to monitor 20 separate clusters
+
+**Recommendation:** Use Pattern 1's shared AKS when possible. Only create dedicated AKS (Pattern 2) when:
+- Compliance requires isolation
+- Different Kubernetes versions needed
+- Different security requirements
+
+### VNet Design Best Practices for Mixed Patterns
+
+#### 1. **Plan Your IP Address Space**
+
+```hcl
+# GOOD - Organized by purpose:
+address_space = ["10.1.0.0/16"]  # 65,536 IPs total
+
+subnets = {
+  # Pattern 1 resources (shared):
+  "shared-aks-subnet"     = { address_prefixes = ["10.1.0.0/22"] }   # 1024 IPs
+  "shared-app-subnet"     = { address_prefixes = ["10.1.4.0/24"] }   # 256 IPs
+  
+  # Pattern 2 resources (delegated):
+  "pattern2-aks-pool"     = { address_prefixes = ["10.1.8.0/21"] }   # 2048 IPs (multiple AKS)
+  "pattern2-app-pool"     = { address_prefixes = ["10.1.16.0/20"] }  # 4096 IPs (many apps)
+  "pattern2-db-pool"      = { address_prefixes = ["10.1.32.0/20"] }  # 4096 IPs (databases)
+  
+  # Management:
+  "bastion-subnet"        = { address_prefixes = ["10.1.255.0/27"] } # 32 IPs
+}
+```
+
+#### 2. **Document VNet Ownership**
+
+Create `docs/VNET-ALLOCATION.md`:
+```markdown
+# VNet IP Allocation - Dev Environment
+
+VNet: vnet-contoso-dev-001 (10.1.0.0/16)
+
+## Pattern 1 Subnets (Platform Team Managed)
+| Subnet | CIDR | IPs | Purpose | Used By |
+|--------|------|-----|---------|---------|
+| shared-aks-subnet | 10.1.0.0/22 | 1024 | Pattern 1 AKS | Team Alpha, Beta |
+| shared-app-subnet | 10.1.4.0/24 | 256 | Pattern 1 App Services | Team Alpha |
+
+## Pattern 2 Subnets (App Team Managed)
+| Subnet | CIDR | IPs | Purpose | Contact |
+|--------|------|-----|---------|---------|
+| crm-app-subnet | 10.1.16.0/26 | 64 | CRM App Service | crm-team@company.com |
+| ecommerce-aks-subnet | 10.1.20.0/24 | 256 | E-commerce AKS | ecommerce-team@company.com |
+
+## Rules
+1. Contact platform-team@ before creating new subnets
+2. Use smallest subnet size needed (don't waste IPs)
+3. Document any subnet delegation requirements
+```
+
+#### 3. **Use Resource Locks on VNet**
+
+```hcl
+# In Pattern 1's main.tf:
+resource "azurerm_management_lock" "vnet_lock" {
+  name       = "do-not-delete-vnet"
+  scope      = azurerm_virtual_network.main.id
+  lock_level = "CanNotDelete"
+  notes      = "VNet is shared by 15 applications. Deletion requires CTO approval."
+}
+```
+
+**Benefit:** Prevents accidental VNet deletion even if someone runs `terraform destroy`!
+
+#### 4. **Monitor VNet Changes**
+
+Set up Azure Monitor alert:
+```json
+{
+  "alertName": "VNet Configuration Changed",
+  "description": "Alert when vnet-contoso-dev-001 is modified",
+  "condition": {
+    "resourceType": "Microsoft.Network/virtualNetworks",
+    "resourceName": "vnet-contoso-dev-001",
+    "operation": "Microsoft.Network/virtualNetworks/write"
+  },
+  "actions": [
+    {
+      "actionType": "email",
+      "recipients": [
+        "platform-team@company.com",
+        "app-team-leads@company.com"
+      ]
+    }
+  ]
+}
+```
+
+#### 5. **Version Control for Shared Resources**
+
+```yaml
+# .github/CODEOWNERS (or Azure DevOps equivalent)
+# Require platform team approval for VNet changes
+
+infra/envs/dev/main.tf        @platform-team
+infra/modules/networking/      @platform-team
+
+# Pattern 2 teams can self-approve
+examples/pattern-2-delegated/dev-app-crm/      @crm-team
+examples/pattern-2-delegated/dev-app-ecommerce/ @ecommerce-team
+```
+
+### Summary: VNet is the Foundation
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Key Principles                          │
+│                                                              │
+│  1. VNet is created ONCE by Platform team                   │
+│  2. ALL Pattern 1 and Pattern 2 apps share the same VNet    │
+│  3. VNet changes affect EVERYONE simultaneously              │
+│  4. Coordinate VNet changes across ALL teams                 │
+│  5. Use Terraform locks to prevent accidental deletion       │
+│  6. Plan IP space for 2-3 years of growth                   │
+│  7. Document subnet allocation clearly                       │
+│  8. Monitor VNet changes with alerts                         │
+│                                                              │
+│  Remember: VNet is infrastructure - shared forever!          │
+│            Applications can be Pattern 1 or Pattern 2        │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
