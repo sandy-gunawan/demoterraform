@@ -223,44 +223,259 @@ This is the most confusing part for beginners, so let's break it down step-by-st
 
 The Platform team deploys **only** the networking foundation. They can do this in two ways:
 
-**Option A: Use a simplified version of Pattern 1 (Recommended)**
+---
+
+### Option A: Reuse Pattern 1 Folder (EASIEST - Recommended)
+
+**Concept**: Use the existing `infra/envs/dev/` folder, but turn OFF all the app service toggles. This way, only the base networking gets created.
+
+**Step-by-step:**
 
 ```bash
-# Platform team creates ONLY the networking parts
 cd infra/envs/dev
+```
 
-# Edit dev.tfvars - DISABLE all app services
-enable_aks            = false  # ← App teams will create their own
-enable_cosmosdb       = false  # ← App teams will create their own
-enable_container_apps = false  # ← App teams will create their own
-enable_webapp         = false  # ← App teams will create their own
-enable_key_vault      = true   # ← Shared Key Vault (optional)
+**Edit `dev.tfvars` - Turn EVERYTHING off except networking:**
 
-# Deploy - This creates ONLY:
-# - VNet + Subnets
-# - NSGs
-# - Log Analytics
+```hcl
+# File: infra/envs/dev/dev.tfvars
+
+organization_name = "contoso"
+project_name      = "platform"
+location          = "southeastasia"
+tenant_id         = "YOUR-TENANT-ID"
+
+# ============================================================
+# FOR PATTERN 2: DISABLE ALL APP SERVICES!
+# ============================================================
+enable_aks            = false  # ❌ App teams create their own AKS
+enable_cosmosdb       = false  # ❌ App teams create their own CosmosDB
+enable_container_apps = false  # ❌ App teams create their own Container Apps
+enable_webapp         = false  # ❌ App teams create their own Web Apps
+enable_postgresql     = false  # ❌ App teams create their own PostgreSQL
+
+# Only shared infrastructure
+enable_key_vault      = true   # ✅ Optional: shared Key Vault (if you want)
+
+# Monitoring (shared by all teams)
+enable_application_insights = false
+enable_diagnostic_settings  = false
+log_retention_days          = 30
+```
+
+**What happens when you run `terraform apply`?**
+
+The `infra/envs/dev/main.tf` file has conditional blocks like this:
+
+```hcl
+# From infra/envs/dev/main.tf:
+
+# This ALWAYS runs (no toggle):
+resource "azurerm_resource_group" "main" { ... }
+module "networking" { ... }
+resource "azurerm_log_analytics_workspace" "main" { ... }
+
+# This ONLY runs if enable_aks = true:
+module "aks" {
+  count  = var.enable_aks ? 1 : 0  # ← count = 0, so SKIPPED!
+  source = "../../modules/aks"
+  ...
+}
+
+# This ONLY runs if enable_cosmosdb = true:
+module "cosmosdb" {
+  count  = var.enable_cosmosdb ? 1 : 0  # ← count = 0, so SKIPPED!
+  source = "../../modules/cosmosdb"
+  ...
+}
+```
+
+**Deploy:**
+
+```bash
+terraform init
+terraform plan -var-file="dev.tfvars"
+
+# Output shows:
+# Plan: 8 to add, 0 to change, 0 to destroy
+#   + resource_group (networking)
+#   + vnet
+#   + subnet (aks-subnet)
+#   + subnet (app-subnet)
+#   + nsg (aks-nsg)
+#   + log_analytics_workspace
+#   + key_vault (if enabled)
+# 
+# Notice: NO AKS, NO CosmosDB, NO Container Apps!
+
 terraform apply -var-file="dev.tfvars"
 ```
 
-**Result**: Platform team has a state file `dev.terraform.tfstate` that contains:
-- ✅ VNet: `vnet-contoso-dev-001`
-- ✅ Subnets: `snet-contoso-dev-aks-001`, `snet-contoso-dev-app-001`
-- ✅ NSGs: `nsg-contoso-dev-aks-001`
-- ✅ Log Analytics: `log-contoso-dev-001`
-- ❌ NO AKS, NO CosmosDB, NO Container Apps (app teams create those!)
+**Result**: State file `dev.terraform.tfstate` contains **ONLY**:
+- ✅ Resource Group: `rg-contoso-platform-network-001`
+- ✅ VNet: `platform-vnet-dev` (10.1.0.0/16)
+- ✅ Subnet: `aks-subnet` (10.1.1.0/24)
+- ✅ Subnet: `app-subnet` (10.1.2.0/24)
+- ✅ NSG: `aks-nsg`
+- ✅ Log Analytics: `platform-logs-dev`
+- ✅ Key Vault: `platformkvdev` (if enabled)
+- ❌ **NO AKS** (count = 0, skipped!)
+- ❌ **NO CosmosDB** (count = 0, skipped!)
+- ❌ **NO Container Apps** (count = 0, skipped!)
 
-**Option B: Create a separate "landing-zone-only" folder**
+**Key Point**: Even though the AKS module code exists in `main.tf`, it doesn't run because `count = 0`. It's like having a light switch - the wiring is there, but the switch is OFF.
+
+---
+
+### Option B: Create Separate Landing Zone Folder (CLEANER)
+
+**Concept**: Create a brand new folder that ONLY handles shared networking. No app services at all.
+
+**Create new folder structure:**
 
 ```
-infra/landing-zone-shared/
-├── main.tf          ← Creates ONLY VNet, Subnets, Logs
-├── variables.tf
-├── dev.tfvars
-└── backend.tf       ← State: dev-shared-infra.tfstate
+infra/
+├── envs/              ← Pattern 1 folder (you can skip this entirely for pure Pattern 2)
+├── landing-zone/      ← NEW! Platform team's dedicated folder
+│   ├── main.tf
+│   ├── variables.tf
+│   ├── dev.tfvars
+│   ├── outputs.tf
+│   └── backend.tf
+└── modules/           ← Existing modules (reused)
 ```
 
-This is cleaner but requires more setup.
+**Create `infra/landing-zone/main.tf`:**
+
+```hcl
+# File: infra/landing-zone/main.tf
+# Platform Team's DEDICATED landing zone (no app services!)
+
+terraform {
+  required_version = ">= 1.5.0"
+  
+  backend "azurerm" {
+    resource_group_name  = "terraform-state-rg"
+    storage_account_name = "tfstatecontosoid"
+    container_name       = "tfstate"
+    key                  = "dev-shared-landing-zone.tfstate"  # Different key!
+  }
+}
+
+provider "azurerm" {
+  features {}
+}
+
+# Resource Group
+resource "azurerm_resource_group" "network" {
+  name     = "rg-${var.company_name}-${var.environment}-network-001"
+  location = var.location
+  
+  tags = {
+    ManagedBy   = "Terraform"
+    Purpose     = "Shared Networking"
+    Environment = var.environment
+  }
+}
+
+# Use the landing-zone module (which includes VNet, Subnets, NSGs, Logs)
+module "landing_zone" {
+  source = "../modules/landing-zone"
+  
+  resource_group_name = azurerm_resource_group.network.name
+  vnet_name           = "vnet-${var.company_name}-${var.environment}-001"
+  location            = var.location
+  address_space       = ["10.1.0.0/16"]
+  
+  subnets = {
+    "snet-${var.company_name}-${var.environment}-aks-001" = {
+      address_prefixes  = ["10.1.1.0/24"]
+      service_endpoints = ["Microsoft.Sql", "Microsoft.Storage", "Microsoft.KeyVault"]
+    }
+    "snet-${var.company_name}-${var.environment}-app-001" = {
+      address_prefixes  = ["10.1.2.0/24"]
+      service_endpoints = ["Microsoft.Sql", "Microsoft.Storage"]
+    }
+  }
+  
+  # NSGs, Log Analytics, etc.
+  network_security_groups = { ... }
+  
+  tags = { ... }
+}
+```
+
+**Create `infra/landing-zone/dev.tfvars`:**
+
+```hcl
+company_name = "contoso"
+environment  = "dev"
+location     = "southeastasia"
+```
+
+**Deploy:**
+
+```bash
+cd infra/landing-zone
+terraform init
+terraform plan -var-file="dev.tfvars"
+terraform apply -var-file="dev.tfvars"
+```
+
+**Result**: State file `dev-shared-landing-zone.tfstate` contains the same networking resources, but this folder is completely separate from Pattern 1.
+
+---
+
+### Comparison: Option A vs Option B
+
+| Aspect | Option A: Reuse Pattern 1 | Option B: Separate Folder |
+|--------|---------------------------|---------------------------|
+| **Effort** | ✅ Easy - just edit tfvars | ❌ More work - create new folder |
+| **Files to create** | 0 (reuse existing) | 4-5 new files |
+| **State file** | `dev.terraform.tfstate` | `dev-shared-landing-zone.tfstate` |
+| **Confusing?** | A bit (toggles can be confusing) | No (clear purpose) |
+| **Can coexist with Pattern 1?** | ⚠️ Must choose one or the other | ✅ Yes, completely separate |
+| **Best for** | Quick start, small teams | Large orgs, clear separation |
+
+---
+
+### Visual: What Gets Created (Option A)
+
+```
+When you set all toggles to FALSE in Pattern 1:
+
+infra/envs/dev/main.tf contains:
+┌─────────────────────────────────────────────────┐
+│ resource "azurerm_resource_group" {...}   ✅ RUNS  │
+│ module "networking" {...}                 ✅ RUNS  │
+│ resource "azurerm_log_analytics" {...}    ✅ RUNS  │
+│ module "security" { count = 1 ? 1 : 0 }   ✅ RUNS  │
+│                                                  │
+│ module "aks" { count = false ? 1 : 0 }    ❌ SKIPPED │
+│ module "cosmosdb" { count = false ? 1:0}  ❌ SKIPPED │
+│ module "container_apps" { count = ...}    ❌ SKIPPED │
+└─────────────────────────────────────────────────┘
+
+Result in Azure:
+✅ VNet + Subnets + NSGs + Log Analytics
+❌ NO AKS, NO CosmosDB, NO Container Apps
+```
+
+---
+
+### Common Confusion Clarified
+
+**Q: "If I use Pattern 1 folder with AKS enabled, won't AKS be created?"**
+
+**A**: NO! Only if `enable_aks = true` in your tfvars. If you set `enable_aks = false`, the AKS module is **skipped entirely** (count = 0). It's like the code doesn't exist.
+
+**Q: "So Platform team can switch between Pattern 1 and Pattern 2 in the same folder?"**
+
+**A**: **NO!** You must choose one:
+- **Pattern 1**: `enable_aks = true` → Platform team manages AKS for everyone
+- **Pattern 2**: `enable_aks = false` → App teams manage their own AKS
+
+You can't have BOTH Pattern 1's AKS AND Pattern 2's AKS in the same environment. Pick one.
 
 ### Step 2: App Teams Reference the Shared Infrastructure
 
@@ -380,11 +595,53 @@ CRM team:        Uses the subnet ID to connect their App Service
 | **Forgetting to deploy shared infra first** | Error: VNet not found | Platform team must deploy first |
 | **Wrong resource group name** | Error: Not found | Check Platform team's naming exactly |
 
+### Can You Use BOTH Patterns at the Same Time?
+
+**YES! This is the MOST common real-world scenario!**
+
+Here's how it works:
+
+```
+Pattern 1 (infra/envs/dev):              Pattern 2 (examples/pattern-2-delegated):
+┌─────────────────────────────┐          ┌──────────────────────────────┐
+│ Platform Team Deploys:      │          │ CRM Team Deploys:            │
+│                             │          │                              │
+│ ✅ VNet (SHARED!)           │──────────┤ data "VNet" → reads this!   │
+│ ✅ Subnets (SHARED!)        │          │                              │
+│ ✅ Logs (SHARED!)           │          │ ✅ Own App Service           │
+│ ✅ AKS (Team A & B share)   │          │ ✅ Own CosmosDB              │
+│ ✅ CosmosDB (Team A uses)   │          │ ✅ Own Key Vault             │
+└─────────────────────────────┘          └──────────────────────────────┘
+                                         ┌──────────────────────────────┐
+                                         │ E-commerce Team Deploys:     │
+                                         │                              │
+                                         │ data "VNet" → reads this!   │
+                                         │                              │
+                                         │ ✅ Own AKS (separate!)       │
+                                         │ ✅ Own CosmosDB              │
+                                         │ ✅ Own Key Vault             │
+                                         └──────────────────────────────┘
+
+Result: 2 AKS clusters (one shared, one for e-commerce)
+        3 CosmosDB instances (one shared, one for CRM, one for e-commerce)
+        ALL using the SAME VNet!
+```
+
+**For the demo, you use BOTH patterns simultaneously:**
+
+1. **Pattern 1**: Platform enables `enable_aks=true`, `enable_cosmosdb=true`
+2. **Pattern 2**: CRM and E-commerce teams reference Pattern 1's VNet using `data` blocks
+3. **Everything coexists**: Pattern 1's shared AKS + Pattern 2's independent apps
+
+**Why this works:**
+- The VNet is infrastructure (networking layer) - everyone shares it
+- The applications (AKS, CosmosDB) are workload layer - teams choose Pattern 1 (shared) or Pattern 2 (own)
+
 ### Can Pattern 2 Work WITHOUT Pattern 1?
 
 **YES!** Pattern 2 does NOT require Pattern 1. Here's how:
 
-**Scenario: Pure Pattern 2 (No Pattern 1)**
+**Scenario: Pure Pattern 2 (No Pattern 1 apps)**
 
 ```
 infra/
@@ -495,6 +752,372 @@ Day 2-10: App Teams Deploy Independently
 ```
 
 **Key Point:** All teams work in parallel AFTER Platform team finishes shared infra!
+
+---
+
+## The Complete Flow: How Files Connect Between Patterns
+
+### Flow Diagram: Pattern 1 + Pattern 2 Working Together
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│ STEP 1: Platform Team Deploys Pattern 1                            │
+└────────────────────────────────────────────────────────────────────┘
+
+File: infra/envs/dev/backend.tf
+    ↓
+    Defines state storage: dev.terraform.tfstate
+
+File: infra/envs/dev/dev.tfvars
+    ↓
+    Values: enable_aks=true, enable_cosmosdb=true
+
+File: infra/envs/dev/variables.tf ← Validates values
+
+File: infra/envs/dev/main.tf (THE ORCHESTRATOR)
+    ↓
+    ├─→ Creates: azurerm_resource_group.main
+    │       Name: "contoso-platform-rg-dev"
+    │
+    ├─→ Calls: module "networking" (../../modules/networking)
+    │       Creates:
+    │       - VNet: "platform-vnet-dev"
+    │       - Subnet: "aks-subnet" (10.1.1.0/24)
+    │       - Subnet: "app-subnet" (10.1.2.0/24)
+    │       - NSG: "aks-nsg"
+    │
+    ├─→ Calls: module "aks" [count=1 because enable_aks=true]
+    │       Creates: AKS cluster using aks-subnet
+    │
+    ├─→ Calls: module "cosmosdb" [count=1 because enable_cosmosdb=true]
+    │       Creates: CosmosDB account
+    │
+    └─→ Saves to state: dev.terraform.tfstate
+            Contains:
+            - Resource Group: contoso-platform-rg-dev
+            - VNet ID: /subscriptions/.../vnet/platform-vnet-dev
+            - Subnet IDs: .../aks-subnet, .../app-subnet
+            - AKS ID: .../aks/platform-aks-dev
+            - CosmosDB ID: .../cosmos/platformcosmosdev
+
+┌────────────────────────────────────────────────────────────────────┐
+│ STEP 2: CRM Team Deploys Pattern 2 (AFTER Step 1 completes)        │
+└────────────────────────────────────────────────────────────────────┘
+
+File: examples/pattern-2-delegated/dev-app-crm/backend.tf
+    ↓
+    Defines SEPARATE state storage: dev-app-crm.tfstate
+
+File: examples/pattern-2-delegated/dev-app-crm/dev.tfvars
+    ↓
+    Values: location=southeastasia, app_service_sku=B1
+
+File: examples/pattern-2-delegated/dev-app-crm/main.tf
+    ↓
+    ├─→ data "azurerm_virtual_network" "landing_zone"
+    │       ↓
+    │       Queries Azure: "Find VNet named platform-vnet-dev"
+    │       ↓
+    │       Azure returns: VNet ID from Pattern 1's deployment
+    │       ↓
+    │       Stores in memory (NOT in state): vnet details
+    │
+    ├─→ data "azurerm_subnet" "app_service"
+    │       ↓
+    │       Queries Azure: "Find subnet named app-subnet"
+    │       ↓
+    │       Azure returns: Subnet ID from Pattern 1's deployment
+    │       ↓
+    │       Stores in memory: subnet details
+    │
+    ├─→ Creates: azurerm_resource_group.crm
+    │       Name: "rg-contoso-dev-crm-001" (CRM's own!)
+    │
+    ├─→ Creates: azurerm_linux_web_app.crm
+    │       Uses: data.azurerm_subnet.app_service.id ← Points to Pattern 1's subnet!
+    │
+    ├─→ Creates: azurerm_cosmosdb_account.crm
+    │       Name: "cosmos-contoso-dev-crm-001" (CRM's own! Different from Pattern 1!)
+    │
+    └─→ Saves to state: dev-app-crm.tfstate (SEPARATE file!)
+            Contains:
+            - Resource Group: rg-contoso-dev-crm-001
+            - App Service: app-contoso-dev-crm-001
+            - CosmosDB: cosmos-contoso-dev-crm-001
+            - Does NOT contain VNet (that's in Platform's state!)
+```
+
+### Prerequisites for Running Both Patterns Together
+
+| Prerequisite | Required? | Why |
+|-------------|-----------|-----|
+| **Platform team deploys first** | ✅ YES | Pattern 2 needs the VNet to exist before referencing it |
+| **Names must match exactly** | ✅ YES | `data` blocks search by exact name |
+| **Subnets must exist** | ✅ YES | Pattern 2 apps need subnets to connect to |
+| **Separate state files** | ✅ YES | Each Pattern 2 app needs its own state file |
+| **Different resource names** | ✅ YES | Pattern 2 can't use same names as Pattern 1 resources |
+| **Same Azure subscription** | ⚠️ Usually | Can be different, but same is easier |
+| **Same region** | ⚠️ Usually | VNet can only exist in one region |
+
+### Subnet Strategy: Do You Need New Subnets?
+
+**Answer: It depends on isolation requirements**
+
+#### Option 1: Share Subnets (Simpler)
+```hcl
+# Pattern 1 creates:
+subnets = {
+  "aks-subnet" = { address_prefixes = ["10.1.1.0/24"] }
+  "app-subnet" = { address_prefixes = ["10.1.2.0/24"] }  ← Everyone uses this!
+}
+
+# Pattern 1 AKS uses: aks-subnet
+# Pattern 2 CRM App Service uses: app-subnet ← Same subnet as Pattern 1 apps
+# Pattern 2 E-commerce AKS uses: aks-subnet ← Same subnet as Pattern 1 AKS
+```
+
+**Pros:**
+- ✅ Simpler setup
+- ✅ Fewer IP address ranges
+- ✅ All apps can communicate easily
+
+**Cons:**
+- ❌ Less resource isolation
+- ❌ Harder to apply NSG rules per team
+
+#### Option 2: Dedicated Subnets per Team (More Isolated)
+```hcl
+# Platform team creates MORE subnets in Pattern 1:
+subnets = {
+  "aks-subnet"            = { address_prefixes = ["10.1.1.0/24"] }  # Pattern 1 AKS
+  "app-subnet"            = { address_prefixes = ["10.1.2.0/24"] }  # Pattern 1 apps
+  "crm-app-subnet"        = { address_prefixes = ["10.1.3.0/24"] }  # CRM team only
+  "ecommerce-aks-subnet"  = { address_prefixes = ["10.1.4.0/24"] }  # E-commerce team only
+  "marketing-app-subnet"  = { address_prefixes = ["10.1.5.0/24"] }  # Marketing team only
+}
+
+# Then Pattern 2 CRM uses:
+data "azurerm_subnet" "app_service" {
+  name = "crm-app-subnet"  ← Dedicated subnet for CRM
+}
+```
+
+**Pros:**
+- ✅ Better isolation between teams
+- ✅ Easier to apply team-specific NSG rules
+- ✅ Easier to track network costs per team
+
+**Cons:**
+- ❌ More complex setup
+- ❌ Need to plan IP address ranges carefully
+- ❌ Inter-team communication requires peering/routes
+
+**Recommendation for Demo:**
+- Use **Option 1** (shared subnets) - simpler to explain
+- Mention **Option 2** exists for production environments
+
+### What Happens If Platform Team Changes Something?
+
+This is CRITICAL to understand for production use!
+
+#### Scenario 1: Platform Team Changes Subnet Name
+
+```hcl
+# Before (Platform team's main.tf):
+subnets = {
+  "app-subnet" = { address_prefixes = ["10.1.2.0/24"] }
+}
+
+# Platform team renames:
+subnets = {
+  "application-subnet" = { address_prefixes = ["10.1.2.0/24"] }  ← RENAMED!
+}
+
+# Platform runs terraform apply
+# Result: Old subnet deleted, new subnet created
+```
+
+**Impact on Pattern 2 CRM team:**
+```
+❌ ERROR: CRM deployment fails!
+
+Error: Error reading subnet "app-subnet": Not found
+
+CRM's data block still looks for "app-subnet" but it doesn't exist anymore!
+```
+
+**Solution:**
+```hcl
+# CRM team must UPDATE their data block:
+data "azurerm_subnet" "app_service" {
+  name = "application-subnet"  ← Update to match new name
+}
+
+# Then redeploy
+```
+
+**Lesson:** Platform team changes can BREAK Pattern 2 apps! Need coordination!
+
+#### Scenario 2: Platform Team Changes Subnet CIDR
+
+```hcl
+# Before:
+"app-subnet" = { address_prefixes = ["10.1.2.0/24"] }  # 256 IPs
+
+# After:
+"app-subnet" = { address_prefixes = ["10.1.2.0/23"] }  # 512 IPs (larger)
+```
+
+**Impact on Pattern 2:**
+```
+⚠️ WARNING: May cause downtime!
+
+Terraform will:
+1. Destroy old subnet (disconnects all apps!)
+2. Create new subnet (apps reconnect)
+
+Result: Brief outage for CRM App Service
+```
+
+**Solution:** 
+- Coordinate with app teams before making network changes
+- Or create a NEW subnet instead of modifying existing
+
+#### Scenario 3: Platform Team Deletes the VNet
+
+```hcl
+# Platform team runs:
+terraform destroy
+
+# This deletes EVERYTHING in Pattern 1's state:
+# - VNet
+# - Subnets
+# - AKS
+# - CosmosDB
+```
+
+**Impact on Pattern 2:**
+```
+💥 CATASTROPHIC: All Pattern 2 apps break immediately!
+
+CRM App Service: No network connectivity (subnet gone!)
+E-commerce AKS: Nodes can't communicate (VNet gone!)
+
+Result: Complete application failure
+```
+
+**Lesson:** NEVER destroy shared infrastructure while apps depend on it!
+
+#### Scenario 4: Platform Team Adds a New NSG Rule
+
+```hcl
+# Platform team adds:
+network_security_groups = {
+  "app-nsg" = {
+    security_rules = {
+      "block-port-8080" = {  # NEW RULE
+        priority                   = 200
+        direction                  = "Inbound"
+        access                     = "Deny"
+        destination_port_range     = "8080"
+      }
+    }
+  }
+}
+```
+
+**Impact on Pattern 2:**
+```
+✅ SAFE: Pattern 2 apps automatically inherit new NSG rules
+
+If CRM app uses port 8080: Traffic blocked (may break app)
+If CRM app uses port 3000: No impact
+```
+
+**Lesson:** NSG changes affect ALL apps on that subnet!
+
+### Limitations & Gotchas When Using Both Patterns
+
+| Limitation | Description | Workaround |
+|------------|-------------|------------|
+| **Name coupling** | Pattern 2 data blocks hardcode Pattern 1 resource names | Document naming convention clearly |
+| **Change coordination** | Platform changes can break Pattern 2 apps | Use variables for shared resource names |
+| **No automatic updates** | Pattern 2 apps don't auto-update when Platform changes | Pattern 2 teams must monitor Platform changes |
+| **Blast radius** | Pattern 1 VNet deletion breaks ALL Pattern 2 apps | Use Terraform locks on shared resources |
+| **IP exhaustion** | Limited IP space in existing subnets | Plan subnet sizes carefully upfront |
+| **State file coupling** | Can't move resources between Pattern 1 and Pattern 2 states easily | Design boundaries carefully before implementing |
+
+### Best Practices for Using Both Patterns Together
+
+#### 1. **Use Variables for Shared Resource Names**
+
+Instead of hardcoding in Pattern 2:
+```hcl
+# BAD - Hardcoded:
+data "azurerm_virtual_network" "landing_zone" {
+  name = "vnet-contoso-dev-001"  ← Hardcoded!
+}
+
+# GOOD - Variable:
+data "azurerm_virtual_network" "landing_zone" {
+  name = var.shared_vnet_name  ← From variable!
+}
+
+# In dev.tfvars:
+shared_vnet_name = "vnet-contoso-dev-001"
+```
+
+**Benefit:** If Platform team renames VNet, Pattern 2 teams only update ONE variable.
+
+#### 2. **Document Shared Resources**
+
+Create a shared reference file:
+```yaml
+# docs/SHARED-RESOURCES.md
+# Shared Infrastructure (Platform Team Owned)
+
+Dev Environment:
+  VNet Name: vnet-contoso-dev-001
+  Resource Group: rg-contoso-dev-network-001
+  Subnets:
+    - aks-subnet: 10.1.1.0/24 (for Kubernetes workloads)
+    - app-subnet: 10.1.2.0/24 (for App Services, Container Apps)
+  
+  DO NOT DELETE THESE RESOURCES!
+  Contact: platform-team@company.com before making changes
+```
+
+#### 3. **Use Terraform Locks on Shared Resources**
+
+```hcl
+# In Platform team's main.tf:
+resource "azurerm_management_lock" "vnet_lock" {
+  name       = "vnet-do-not-delete"
+  scope      = azurerm_virtual_network.main.id
+  lock_level = "CanNotDelete"
+  notes      = "VNet is shared by multiple app teams. Contact platform team before deletion."
+}
+```
+
+**Benefit:** Prevents accidental VNet deletion!
+
+#### 4. **Coordinate Changes via Pull Requests**
+
+**Process:**
+1. Platform team creates PR to change subnet name
+2. PR description lists all affected Pattern 2 apps
+3. Pattern 2 teams review and prepare updates
+4. Platform team merges after coordination
+5. Pattern 2 teams update their data blocks
+
+#### 5. **Monitor Shared Resources**
+
+Set up Azure Monitor alerts:
+```
+Alert: "Shared VNet Modified"
+Trigger: Any change to vnet-contoso-dev-001
+Action: Email all app team leads
+```
 
 ---
 
