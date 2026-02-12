@@ -56,6 +56,30 @@ output "managed_identity_principal_id" {
 }
 
 # ============================================================================
+# NETWORKING OUTPUTS
+# ============================================================================
+
+output "vnet_id" {
+  description = "E-commerce VNet ID"
+  value       = module.networking.vnet_id
+}
+
+output "vnet_name" {
+  description = "E-commerce VNet name"
+  value       = module.networking.vnet_name
+}
+
+output "subnet_ids" {
+  description = "E-commerce subnet IDs"
+  value       = module.networking.subnet_ids
+}
+
+output "aks_subnet_id" {
+  description = "E-commerce AKS subnet ID"
+  value       = module.networking.subnet_ids["aks-subnet"]
+}
+
+# ============================================================================
 # CONNECTION INFORMATION (for app deployment)
 # ============================================================================
 

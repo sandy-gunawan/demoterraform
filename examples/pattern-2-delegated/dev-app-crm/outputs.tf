@@ -52,6 +52,30 @@ output "managed_identity_client_id" {
 }
 
 # ============================================================================
+# NETWORKING OUTPUTS
+# ============================================================================
+
+output "vnet_id" {
+  description = "CRM VNet ID"
+  value       = module.networking.vnet_id
+}
+
+output "vnet_name" {
+  description = "CRM VNet name"
+  value       = module.networking.vnet_name
+}
+
+output "subnet_ids" {
+  description = "CRM subnet IDs"
+  value       = module.networking.subnet_ids
+}
+
+output "app_subnet_id" {
+  description = "CRM App subnet ID (for VNet integration)"
+  value       = module.networking.subnet_ids["app-subnet"]
+}
+
+# ============================================================================
 # DEPLOYMENT COMMAND (for convenience)
 # ============================================================================
 

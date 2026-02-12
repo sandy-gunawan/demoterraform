@@ -32,23 +32,10 @@ provider "azurerm" {
 }
 
 # ============================================================================
-# DATA SOURCES - Reference shared infrastructure
+# DATA SOURCES
 # ============================================================================
 
 data "azurerm_client_config" "current" {}
-
-# Reference VNet from landing zone
-data "azurerm_virtual_network" "landing_zone" {
-  name                = "vnet-contoso-dev-001"
-  resource_group_name = "rg-contoso-dev-network-001"
-}
-
-# Reference AKS subnet from landing zone
-data "azurerm_subnet" "aks" {
-  name                 = "snet-contoso-dev-aks-001"
-  virtual_network_name = data.azurerm_virtual_network.landing_zone.name
-  resource_group_name  = data.azurerm_virtual_network.landing_zone.resource_group_name
-}
 
 # ============================================================================
 # NAMING MODULE
@@ -69,6 +56,29 @@ module "naming" {
 resource "azurerm_resource_group" "ecommerce" {
   name     = "rg-${var.company_name}-${var.environment}-${var.workload}-001"
   location = var.location
+  
+  tags = merge(var.default_tags, {
+    Application = "E-commerce API"
+    Team        = "E-commerce Team"
+  })
+}
+
+# ============================================================================
+# NETWORKING (E-commerce's Own VNet - 10.3.0.0/16)
+# ============================================================================
+
+module "networking" {
+  source = "../../../infra/modules/networking"
+  
+  resource_group_name = azurerm_resource_group.ecommerce.name
+  network_name        = "vnet-${var.company_name}-${var.environment}-${var.workload}-001"
+  location            = azurerm_resource_group.ecommerce.location
+  address_space       = var.vnet_address_space
+  
+  subnets = var.subnets
+  
+  network_security_groups = var.network_security_groups
+  subnet_nsg_associations = var.subnet_nsg_associations
   
   tags = merge(var.default_tags, {
     Application = "E-commerce API"
@@ -103,7 +113,7 @@ resource "azurerm_kubernetes_cluster" "dedicated" {
     name                = "default"
     node_count          = var.aks_node_count
     vm_size             = var.aks_vm_size
-    vnet_subnet_id      = data.azurerm_subnet.aks.id
+    vnet_subnet_id      = module.networking.subnet_ids["aks-subnet"]
     enable_auto_scaling = true
     min_count           = 1
     max_count           = 5

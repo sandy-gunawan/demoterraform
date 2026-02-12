@@ -78,3 +78,90 @@ variable "cosmos_interactions_ru" {
   type        = number
   default     = 400
 }
+
+# ============================================================================
+# NETWORKING CONFIGURATION
+# ============================================================================
+
+variable "vnet_address_space" {
+  description = "Address space for CRM's VNet (10.2.0.0/16 for CRM app)"
+  type        = list(string)
+  default     = ["10.2.0.0/16"]
+}
+
+variable "subnets" {
+  description = "Subnets configuration for CRM VNet"
+  type = map(object({
+    address_prefixes  = list(string)
+    service_endpoints = optional(list(string), [])
+    delegation = optional(object({
+      name         = string
+      service_name = string
+      actions      = list(string)
+    }))
+  }))
+  default = {
+    "app-subnet" = {
+      address_prefixes = ["10.2.1.0/24"]
+      service_endpoints = [
+        "Microsoft.Web",
+        "Microsoft.AzureCosmosDB",
+        "Microsoft.KeyVault"
+      ]
+    }
+    "db-subnet" = {
+      address_prefixes  = ["10.2.2.0/24"]
+      service_endpoints = ["Microsoft.AzureCosmosDB"]
+    }
+  }
+}
+
+variable "network_security_groups" {
+  description = "NSG configurations for CRM subnets"
+  type = map(object({
+    security_rules = map(object({
+      priority                   = number
+      direction                  = string
+      access                     = string
+      protocol                   = string
+      source_port_range          = string
+      destination_port_range     = string
+      source_address_prefix      = string
+      destination_address_prefix = string
+    }))
+  }))
+  default = {
+    "app-nsg" = {
+      security_rules = {
+        "allow-https" = {
+          priority                   = 100
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "443"
+          source_address_prefix      = "*"
+          destination_address_prefix = "*"
+        }
+        "allow-http" = {
+          priority                   = 110
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "80"
+          source_address_prefix      = "*"
+          destination_address_prefix = "*"
+        }
+      }
+    }
+  }
+}
+
+variable "subnet_nsg_associations" {
+  description = "Map subnet names to NSG names"
+  type        = map(string)
+  default = {
+    "app-subnet" = "app-nsg"
+  }
+}

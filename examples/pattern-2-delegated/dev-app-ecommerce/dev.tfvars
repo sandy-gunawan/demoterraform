@@ -62,3 +62,59 @@ cosmos_allowed_ips = ""
 cosmos_products_ru  = 400  # Product catalog
 cosmos_orders_ru    = 400  # Order history
 cosmos_inventory_ru = 400  # Stock levels
+
+# ----------------------------------------------------------------------------
+# Networking Configuration (E-commerce's Own VNet)
+# ----------------------------------------------------------------------------
+
+# E-commerce app gets its own VNet: 10.3.0.0/16
+# This provides complete network isolation from other applications
+vnet_address_space = ["10.3.0.0/16"]
+
+# Subnets within E-commerce's VNet
+subnets = {
+  "aks-subnet" = {
+    address_prefixes = ["10.3.1.0/24"]  # 256 IPs for AKS nodes
+    service_endpoints = [
+      "Microsoft.ContainerRegistry",
+      "Microsoft.AzureCosmosDB"
+    ]
+  }
+  "db-subnet" = {
+    address_prefixes  = ["10.3.2.0/24"]  # 256 IPs for databases
+    service_endpoints = ["Microsoft.AzureCosmosDB"]
+  }
+}
+
+# Network Security Groups
+network_security_groups = {
+  "aks-nsg" = {
+    security_rules = {
+      "allow-https" = {
+        priority                   = 100
+        direction                  = "Inbound"
+        access                     = "Allow"
+        protocol                   = "Tcp"
+        source_port_range          = "*"
+        destination_port_range     = "443"
+        source_address_prefix      = "*"
+        destination_address_prefix = "*"
+      }
+      "allow-http" = {
+        priority                   = 110
+        direction                  = "Inbound"
+        access                     = "Allow"
+        protocol                   = "Tcp"
+        source_port_range          = "*"
+        destination_port_range     = "80"
+        source_address_prefix      = "*"
+        destination_address_prefix = "*"
+      }
+    }
+  }
+}
+
+# Associate subnets with NSGs
+subnet_nsg_associations = {
+  "aks-subnet" = "aks-nsg"
+}

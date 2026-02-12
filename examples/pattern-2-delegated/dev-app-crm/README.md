@@ -10,6 +10,12 @@ This folder contains Terraform configuration for the CRM application in dev envi
 
 ## 🏗️ Infrastructure Components
 
+**Networking (CRM's Own):**
+- **VNet**: 10.2.0.0/16 (isolated from other apps)
+- **Subnets**: app-subnet, db-subnet
+- **NSGs**: Security rules for app tier
+
+**Application Resources:**
 - **App Service**: Web application hosting
 - **Cosmos DB**: Customer data storage
 - **Key Vault**: Secrets management
@@ -19,13 +25,21 @@ This folder contains Terraform configuration for the CRM application in dev envi
 
 ## 📋 Prerequisites
 
-Ensure platform team has deployed:
-- ✅ Global standards (`infra/global/`)
-- ✅ Landing zone with networking (`infra/envs/dev/`)
+**No dependencies on other teams!** CRM app creates its own networking.
 
-Verify:
+Required:
+- ✅ Azure subscription access
+- ✅ Terraform >= 1.6.0
+- ✅ Azure CLI logged in (`az login`)
+- ✅ Backend storage account (for state file)
+
+Check your access:
 ```bash
-az network vnet show --resource-group rg-contoso-dev-network-001 --name vnet-contoso-dev-001
+# Verify Azure login
+az account show
+
+# Verify subscription
+az account list --output table
 ```
 
 ---

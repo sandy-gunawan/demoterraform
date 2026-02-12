@@ -1,14 +1,49 @@
 # Can You Use Both Pattern 1 and Pattern 2 at the Same Time?
 
-## **YES! This is the most common enterprise scenario!**
+## **YES! And now they're completely independent!**
+
+> **🎉 UPDATED:** Pattern 2 apps create their **own VNets** now!  
+> No need to share Pattern 1's network. Each team fully independent.
 
 ---
 
 ## Your Question Answered
 
-**Q: "Can I use Pattern 1 with `enable_aks=true` AND still have Pattern 2 teams use the VNet?"**
+**Q: "Can I use Pattern 1 AND Pattern 2 at the same time?"**
 
-**A: YES, absolutely!** This is exactly how the demo works.
+**A: YES, absolutely!** And it's even BETTER now because:
+- ✅ Pattern 2 doesn't depend on Pattern 1 network
+- ✅ Each Pattern 2 team creates their own VNet
+- ✅ Deploy in any order (Pattern 2 first is fine!)
+- ✅ Perfect for demos and CI/CD
+
+---
+
+## How It Works (NEW ARCHITECTURE!)
+
+```
+Pattern 1 (Optional - for shared resources):
+========================================================
+VNet: 10.1.0.0/16
+Resources: Shared AKS, Shared CosmosDB
+State file: dev.terraform.tfstate
+
+Pattern 2 CRM (Completely Independent!):
+========================================================
+VNet: 10.2.0.0/16 ← CRM's OWN VNet!
+Subnets: 10.2.1.0/24 (app), 10.2.2.0/24 (db)
+Resources: Own App Service, Own CosmosDB
+State file: dev-app-crm.tfstate
+
+Pattern 2 E-commerce (Completely Independent!):
+========================================================
+VNet: 10.3.0.0/16 ← E-commerce's OWN VNet!
+Subnets: 10.3.1.0/24 (aks), 10.3.2.0/24 (db)
+Resources: Own AKS, Own CosmosDB  
+State file: dev-app-ecommerce.tfstate
+```
+
+**Result: 3 isolated VNets, all working simultaneously!**
 
 ---
 

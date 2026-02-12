@@ -54,3 +54,60 @@ cosmos_allowed_ips = ""
 # Dev: Use 400 RU/s (minimum) to save costs
 cosmos_customers_ru    = 400  # Customer records
 cosmos_interactions_ru = 400  # Communication history
+
+# ----------------------------------------------------------------------------
+# Networking Configuration (CRM's Own VNet)
+# ----------------------------------------------------------------------------
+
+# CRM app gets its own VNet: 10.2.0.0/16
+# This provides complete network isolation from other applications
+vnet_address_space = ["10.2.0.0/16"]
+
+# Subnets within CRM's VNet
+subnets = {
+  "app-subnet" = {
+    address_prefixes = ["10.2.1.0/24"]  # 256 IPs for App Services
+    service_endpoints = [
+      "Microsoft.Web",
+      "Microsoft.AzureCosmosDB",
+      "Microsoft.KeyVault"
+    ]
+  }
+  "db-subnet" = {
+    address_prefixes  = ["10.2.2.0/24"]  # 256 IPs for databases
+    service_endpoints = ["Microsoft.AzureCosmosDB"]
+  }
+}
+
+# Network Security Groups
+network_security_groups = {
+  "app-nsg" = {
+    security_rules = {
+      "allow-https" = {
+        priority                   = 100
+        direction                  = "Inbound"
+        access                     = "Allow"
+        protocol                   = "Tcp"
+        source_port_range          = "*"
+        destination_port_range     = "443"
+        source_address_prefix      = "*"
+        destination_address_prefix = "*"
+      }
+      "allow-http" = {
+        priority                   = 110
+        direction                  = "Inbound"
+        access                     = "Allow"
+        protocol                   = "Tcp"
+        source_port_range          = "*"
+        destination_port_range     = "80"
+        source_address_prefix      = "*"
+        destination_address_prefix = "*"
+      }
+    }
+  }
+}
+
+# Associate subnets with NSGs
+subnet_nsg_associations = {
+  "app-subnet" = "app-nsg"
+}

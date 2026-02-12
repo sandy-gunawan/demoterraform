@@ -10,7 +10,13 @@ This folder contains Terraform configuration for the e-commerce application in d
 
 ## 🏗️ Infrastructure Components
 
-- **AKS Cluster**: Shared cluster, dedicated namespace `ecommerce`
+**Networking (E-commerce's Own):**
+- **VNet**: 10.3.0.0/16 (isolated from other apps)
+- **Subnets**: aks-subnet, db-subnet
+- **NSGs**: Security rules for AKS and database tiers
+
+**Application Resources:**
+- **AKS Cluster**: Dedicated Kubernetes cluster for e-commerce
 - **Cosmos DB**: NoSQL database for products, orders, inventory
 - **Key Vault**: Secrets management
 - **Managed Identity**: For secure authentication
@@ -19,14 +25,25 @@ This folder contains Terraform configuration for the e-commerce application in d
 
 ## 📋 Prerequisites
 
-Ensure platform team has deployed:
-- ✅ Global standards (`infra/global/`)
-- ✅ Landing zone (`infra/envs/dev/` with `enable_aks = true`)
+**No dependencies on other teams!** E-commerce app creates its own networking and AKS.
 
-Verify:
+Required:
+- ✅ Azure subscription access
+- ✅ Terraform >= 1.6.0
+- ✅ Azure CLI logged in (`az login`)
+- ✅ Backend storage account (for state file)
+- ✅ kubectl installed (for AKS access)
+
+Check your access:
 ```bash
-az aks show --resource-group rg-contoso-dev-aks-001 --name aks-contoso-dev-001
-az network vnet show --resource-group rg-contoso-dev-network-001 --name vnet-contoso-dev-001
+# Verify Azure login
+az account show
+
+# Verify subscription
+az account list --output table
+
+# Verify kubectl
+kubectl version --client
 ```
 
 ---

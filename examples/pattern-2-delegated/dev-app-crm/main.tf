@@ -37,19 +37,6 @@ provider "azurerm" {
 
 data "azurerm_client_config" "current" {}
 
-# Reference VNet from landing zone
-data "azurerm_virtual_network" "landing_zone" {
-  name                = "vnet-contoso-dev-001"
-  resource_group_name = "rg-contoso-dev-network-001"
-}
-
-# Reference App Service subnet
-data "azurerm_subnet" "app_service" {
-  name                 = "snet-contoso-dev-app-001"
-  virtual_network_name = data.azurerm_virtual_network.landing_zone.name
-  resource_group_name  = data.azurerm_virtual_network.landing_zone.resource_group_name
-}
-
 # ============================================================================
 # NAMING MODULE
 # ============================================================================
@@ -69,6 +56,29 @@ module "naming" {
 resource "azurerm_resource_group" "crm" {
   name     = "rg-${var.company_name}-${var.environment}-${var.workload}-001"
   location = var.location
+  
+  tags = merge(var.default_tags, {
+    Application = "CRM System"
+    Team        = "CRM Team"
+  })
+}
+
+# ============================================================================
+# NETWORKING (CRM's Own VNet - 10.2.0.0/16)
+# ============================================================================
+
+module "networking" {
+  source = "../../../infra/modules/networking"
+  
+  resource_group_name = azurerm_resource_group.crm.name
+  network_name        = "vnet-${var.company_name}-${var.environment}-${var.workload}-001"
+  location            = azurerm_resource_group.crm.location
+  address_space       = var.vnet_address_space
+  
+  subnets = var.subnets
+  
+  network_security_groups = var.network_security_groups
+  subnet_nsg_associations = var.subnet_nsg_associations
   
   tags = merge(var.default_tags, {
     Application = "CRM System"
