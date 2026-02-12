@@ -56,27 +56,22 @@ output "managed_identity_principal_id" {
 }
 
 # ============================================================================
-# NETWORKING OUTPUTS
+# NETWORKING OUTPUTS (References Platform team's VNet)
 # ============================================================================
 
-output "vnet_id" {
-  description = "E-commerce VNet ID"
-  value       = module.networking.vnet_id
+output "vnet_name_used" {
+  description = "E-commerce VNet name (created by Platform team)"
+  value       = data.azurerm_virtual_network.ecommerce.name
 }
 
-output "vnet_name" {
-  description = "E-commerce VNet name"
-  value       = module.networking.vnet_name
+output "vnet_id_used" {
+  description = "E-commerce VNet ID (created by Platform team)"
+  value       = data.azurerm_virtual_network.ecommerce.id
 }
 
-output "subnet_ids" {
-  description = "E-commerce subnet IDs"
-  value       = module.networking.subnet_ids
-}
-
-output "aks_subnet_id" {
-  description = "E-commerce AKS subnet ID"
-  value       = module.networking.subnet_ids["aks-subnet"]
+output "subnet_id_used" {
+  description = "E-commerce AKS subnet ID (created by Platform team)"
+  value       = data.azurerm_subnet.ecom_aks.id
 }
 
 # ============================================================================
@@ -86,11 +81,11 @@ output "aks_subnet_id" {
 output "app_deployment_info" {
   description = "Information needed to deploy your application"
   value = {
-    namespace              = "ecommerce"
-    managed_identity_id    = azurerm_user_assigned_identity.ecommerce.id
-    key_vault_name         = azurerm_key_vault.ecommerce.name
-    cosmos_endpoint        = azurerm_cosmosdb_account.ecommerce.endpoint
-    cosmos_database        = azurerm_cosmosdb_sql_database.ecommerce.name
+    namespace           = "ecommerce"
+    managed_identity_id = azurerm_user_assigned_identity.ecommerce.id
+    key_vault_name      = azurerm_key_vault.ecommerce.name
+    cosmos_endpoint     = azurerm_cosmosdb_account.ecommerce.endpoint
+    cosmos_database     = azurerm_cosmosdb_sql_database.ecommerce.name
   }
   sensitive = false
 }

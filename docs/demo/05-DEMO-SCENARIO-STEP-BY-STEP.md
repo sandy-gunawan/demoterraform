@@ -1,7 +1,7 @@
 # Document 05: Demo Scenario - Step by Step
 
-> **🎉 UPDATED:** Pattern 2 now creates **separate VNets**! No dependencies on Platform team!  
-> CRM (10.2.x.x), E-commerce (10.3.x.x) - fully independent deployments.
+> **✨ KEY DEMO POINT:** Platform team creates **all 3 VNets** (including Pattern 2 app VNets)!  
+> Pattern 2 teams READ VNets via data sources → Shows framework reusability + governance!
 
 ---
 
@@ -359,31 +359,37 @@ Azure Resources (after both teams):
 > **Explain to client**: "Now we'll show Pattern 2. This is for organizations where teams need **maximum independence**. Each team has:
 > - Their own folder
 > - Their own Terraform state file  
-> - Their own VNet and networking (10.2.x for CRM, 10.3.x for E-commerce)
-> - They can deploy **without ANY dependencies** on the Platform team or Pattern 1!"
+> - **Read** VNets created by Platform team via data sources (10.2.x for CRM, 10.3.x for E-commerce)
+> - They focus on deploying **applications only** - networking is standardized by Platform!"
 
-### 🎯 Key Point: NO Prerequisites Needed!
+### 🎯 Key Point: Framework Reusability + Governance!
 
-**OLD approach (deprecated):** Pattern 2 teams shared Pattern 1's VNet  
-**NEW approach (current):** Each Pattern 2 team creates their OWN VNet!
+**This architecture shows the framework's TRUE VALUE:**  
+Platform team creates networking with governance → Pattern 2 teams reuse it!
 
 ```
-Pattern 1: VNet 10.1.0.0/16 (Optional! Pattern 2 doesn't need it)
-CRM Team: VNet 10.2.0.0/16 (Completely isolated!)
-E-commerce: VNet 10.3.0.0/16 (Completely isolated!)
+Platform Team Creates (Pattern 1 main.tf):
+├── Pattern 1 VNet: 10.1.0.0/16 (for shared services)
+├── Pattern 2 CRM VNet: 10.2.0.0/16 (for CRM app)
+└── Pattern 2 E-commerce VNet: 10.3.0.0/16 (for E-commerce app)
+
+Pattern 2 Teams Read (via data sources):
+├── CRM Team: Reads 10.2.0.0/16, creates App Service + CosmosDB
+└── E-commerce Team: Reads 10.3.0.0/16, creates AKS + CosmosDB
 ```
 
 **Benefits:**
-- ✅ No coordination needed with Platform team
-- ✅ Deploy in ANY order (Pattern 2 can deploy FIRST!)
-- ✅ Perfect for independent CI/CD pipelines
-- ✅ Network isolation by default
+- ✅ Platform governs networking standards (security, naming, subnets)
+- ✅ Pattern 2 teams focus on applications (faster development)
+- ✅ Reusable networking module (don't reinvent the wheel)
+- ✅ Network isolation between apps (each has dedicated VNet)
+- ✅ Separate state files (team independence)
 
 ---
 
 ### Scene 3A: Team Gamma (CRM) - Dewi Deploys Independently
 
-**Story**: Dewi (CRM team lead) deploys her team's infrastructure. No need to ask Platform team!
+**Story**: Dewi (CRM team lead) deploys her team's applications. Platform team already created the VNet!
 
 ### Step 3A.1: Navigate to CRM Folder
 
@@ -394,21 +400,18 @@ cd examples/pattern-2-delegated/dev-app-crm
 
 ### Step 3A.2: Review What Will Be Created
 
-The CRM team's `main.tf` creates EVERYTHING (networking + apps):
+The CRM team's `main.tf` reads Platform's VNet and creates applications:
 
-**Networking (CRM's Own):**
-1. **VNet** - `vnet-contoso-dev-crm-001` (10.2.0.0/16)
-2. **Subnets**:
-   - app-subnet: 10.2.1.0/24 (256 IPs for App Services)
-   - db-subnet: 10.2.2.0/24 (256 IPs for databases)
-3. **NSGs** - Security rules for HTTP/HTTPS
+**Networking (Platform Created, CRM Reads):**
+1. **Data Source** - Reads `vnet-contoso-dev-crm-001` (10.2.0.0/16) created by Platform
+2. **Data Source** - Reads `crm-app-subnet` (10.2.1.0/24)
 
-**Application Resources:**
-4. **Resource Group** - `rg-contoso-dev-crm-001`
-5. **App Service** - `app-contoso-dev-crm-001` (Node.js web app)
-6. **CosmosDB** - `cosmos-contoso-dev-crm-001` (customer data)
-7. **Key Vault** - `kv-contoso-dev-crm` (secrets)
-8. **Managed Identity** - `id-contoso-dev-crm-001` (secure auth)
+**Application Resources (CRM Creates):**
+3. **Resource Group** - `rg-contoso-dev-crm-001`
+4. **App Service** - `app-contoso-dev-crm-001` (Node.js web app)
+5. **CosmosDB** - `cosmos-contoso-dev-crm-001` (customer data)
+6. **Key Vault** - `kv-contoso-dev-crm` (secrets)
+7. **Managed Identity** - `id-contoso-dev-crm-001` (secure auth)
 
 ### Step 3A.3: Configure and Deploy
 
@@ -420,10 +423,11 @@ terraform init
 terraform plan -var-file="dev.tfvars"
 
 # Expected output:
-# Plan: 15 to add, 0 to change, 0 to destroy.
-# + VNet (10.2.0.0/16)
-# + 2 Subnets
-# + NSG
+# Plan: 10 to add, 0 to change, 0 to destroy.
+# Data sources will read:
+#   data.azurerm_virtual_network.crm (reads Platform's VNet)
+#   data.azurerm_subnet.crm_app (reads Platform's subnet)
+# Will create:
 # + Resource Group
 # + App Service (Plan + Web App)
 # + CosmosDB (Account + Database + Containers)
@@ -434,28 +438,24 @@ terraform plan -var-file="dev.tfvars"
 terraform apply -var-file="dev.tfvars"
 ```
 
-> **Explain to client**: "Notice the `backend.tf` has state key `dev-app-crm.tfstate`. This means the CRM team's state is completely separate. CRM can destroy their resources without affecting anyone else!"
+> **Explain to client**: "Notice the CRM team reads the VNet via data sources - they don't create networking! This shows the framework's reusability: Platform creates standardized networks, teams focus on applications. Separate state file (`dev-app-crm.tfstate`) means CRM can manage their apps independently!"
 
-### CRM Team's Resources (Complete Independence!)
+### CRM Team's Resources (Uses Platform's VNet!)
 
 ```
 State file: dev-app-crm.tfstate (SEPARATE!)
 
-Azure Resources:
-├── Resource Group: rg-contoso-dev-crm-001          [CRM Team owns EVERYTHING]
+Reads from Platform (via data sources):
+├── VNet: vnet-contoso-dev-crm-001 (10.2.0.0/16) [Platform-created]
+│   └── crm-app-subnet: 10.2.1.0/24
+
+Creates Own Resources:
+├── Resource Group: rg-contoso-dev-crm-001          [CRM Team manages]
 │   
-│   ### NETWORKING (CRM's Own - 10.2.0.0/16)
-│   ├── VNet: vnet-contoso-dev-crm-001
-│   │   ├── app-subnet: 10.2.1.0/24
-│   │   └── db-subnet: 10.2.2.0/24
-│   ├── NSG: app-nsg
-│   │   ├── Allow HTTPS (port 443)
-│   │   └── Allow HTTP (port 80)
-│   
-│   ### APPLICATIONS
+│   ### APPLICATIONS (CRM's Responsibility)
 │   ├── App Service Plan: asp-contoso-dev-crm-001
 │   ├── Web App: app-contoso-dev-crm-001
-│   │   └── Connected to: CRM's own VNet (app-subnet)
+│   │   └── Connected to: Platform's VNet (crm-app-subnet)
 │   ├── CosmosDB: cosmos-contoso-dev-crm-001
 │   │   ├── Database: crm-db
 │   │   ├── Container: customers (/companyId)
@@ -470,7 +470,7 @@ Azure Resources:
 
 ### Scene 3B: Team Delta (E-commerce) - Eka Deploys Simultaneously
 
-**Story**: AT THE SAME TIME Dewi is deploying CRM, Eka deploys e-commerce. No conflicts because they're in separate VNets!
+**Story**: AT THE SAME TIME Dewi is deploying CRM, Eka deploys e-commerce. No conflicts because they have separate state files and VNets!
 
 ### Step 3B.1: Navigate to E-commerce Folder
 
@@ -481,21 +481,18 @@ cd examples/pattern-2-delegated/dev-app-ecommerce
 
 ### Step 3B.2: Review Configuration
 
-The E-commerce team's `main.tf` creates EVERYTHING (networking + apps):
+The E-commerce team's `main.tf` reads Platform's VNet and creates applications:
 
-**Networking (E-commerce's Own):**
-1. **VNet** - `vnet-contoso-dev-ecommerce-001` (10.3.0.0/16)
-2. **Subnets**:
-   - aks-subnet: 10.3.1.0/24 (256 IPs for AKS nodes)
-   - db-subnet: 10.3.2.0/24 (256 IPs for databases)
-3. **NSGs** - Security rules for AKS traffic
+**Networking (Platform Created, E-commerce Reads):**
+1. **Data Source** - Reads `vnet-contoso-dev-ecommerce-001` (10.3.0.0/16) created by Platform
+2. **Data Source** - Reads `ecom-aks-subnet` (10.3.1.0/24)
 
-**Application Resources:**
-4. **Resource Group** - `rg-contoso-dev-ecommerce-001`
-5. **AKS Cluster** (dedicated) - `aks-contoso-dev-ecommerce-001`
-6. **CosmosDB** - `cosmos-contoso-dev-ecommerce-001` (products, orders, inventory)
-7. **Key Vault** - `kv-contoso-dev-ecommerce`
-8. **Managed Identity** - `id-contoso-dev-ecommerce-001`
+**Application Resources (E-commerce Creates):**
+3. **Resource Group** - `rg-contoso-dev-ecommerce-001`
+4. **AKS Cluster** (dedicated) - `aks-contoso-dev-ecommerce-001`
+5. **CosmosDB** - `cosmos-contoso-dev-ecommerce-001` (products, orders, inventory)
+6. **Key Vault** - `kv-contoso-dev-ecommerce`
+7. **Managed Identity** - `id-contoso-dev-ecommerce-001`
 
 ### Step 3B.3: Deploy
 
@@ -507,10 +504,11 @@ terraform init
 terraform plan -var-file="dev.tfvars"
 
 # Expected output:
-# Plan: 18 to add, 0 to change, 0 to destroy.
-# + VNet (10.3.0.0/16)
-# + 2 Subnets
-# + NSG
+# Plan: 12 to add, 0 to change, 0 to destroy.
+# Data sources will read:
+#   data.azurerm_virtual_network.ecommerce (reads Platform's VNet)
+#   data.azurerm_subnet.ecom_aks (reads Platform's subnet)
+# Will create:
 # + Resource Group
 # + AKS Cluster (2 nodes)
 # + CosmosDB (Account + Database + 3 Containers)
@@ -520,27 +518,23 @@ terraform plan -var-file="dev.tfvars"
 terraform apply -var-file="dev.tfvars"
 ```
 
-### E-commerce Team's Resources (Complete Independence!)
+### E-commerce Team's Resources (Uses Platform's VNet!)
 
 ```
 State file: dev-app-ecommerce.tfstate (SEPARATE!)
 
-Azure Resources:
-├── Resource Group: rg-contoso-dev-ecommerce-001    [E-commerce Team owns EVERYTHING]
+Reads from Platform (via data sources):
+├── VNet: vnet-contoso-dev-ecommerce-001 (10.3.0.0/16) [Platform-created]
+│   └── ecom-aks-subnet: 10.3.1.0/24
+
+Creates Own Resources:
+├── Resource Group: rg-contoso-dev-ecommerce-001    [E-commerce Team manages]
 │   
-│   ### NETWORKING (E-commerce's Own - 10.3.0.0/16)
-│   ├── VNet: vnet-contoso-dev-ecommerce-001
-│   │   ├── aks-subnet: 10.3.1.0/24
-│   │   └── db-subnet: 10.3.2.0/24
-│   ├── NSG: aks-nsg
-│   │   ├── Allow HTTPS (port 443)
-│   │   └── Allow HTTP (port 80)
-│   
-│   ### APPLICATIONS
+│   ### APPLICATIONS (E-commerce's Responsibility)
 │   ├── AKS Cluster: aks-contoso-dev-ecommerce-001
 │   │   ├── Node Count: 2-5 (autoscale)
 │   │   ├── VM Size: Standard_D2s_v3
-│   │   └── Connected to: E-commerce's own VNet (aks-subnet)
+│   │   └── Connected to: Platform's VNet (ecom-aks-subnet)
 │   ├── CosmosDB: cosmos-contoso-dev-ecommerce-001
 │   │   ├── Database: ecommerce-db
 │   │   ├── Container: products (/categoryId)
@@ -564,12 +558,14 @@ Azure Subscription
 ├── terraform-state-rg (State Storage)
 │   └── tfstatecontosoid (Storage Account)
 │       └── tfstate (Container)
-│           ├── dev.terraform.tfstate           ← Pattern 1 (ACT 1 + 2)
-│           ├── dev-app-crm.tfstate             ← CRM Team (ACT 3A)
-│           └── dev-app-ecommerce.tfstate       ← E-commerce Team (ACT 3B)
+│           ├── dev.terraform.tfstate           ← Pattern 1 (ACT 1 + 2 + All VNets)
+│           ├── dev-app-crm.tfstate             ← CRM Team (ACT 3A - Apps only)
+│           └── dev-app-ecommerce.tfstate       ← E-commerce Team (ACT 3B - Apps only)
 │
-├── contoso-platform-rg-dev (Pattern 1 - Shared Resources)
-│   ├── VNet: 10.1.0.0/16 + Subnets
+├── contoso-platform-rg-dev (Pattern 1 - Shared Resources + All VNets)
+│   ├── VNet: 10.1.0.0/16 (Pattern 1 shared services)
+│   ├── VNet: 10.2.0.0/16 (CRM app - Platform-created)
+│   ├── VNet: 10.3.0.0/16 (E-commerce app - Platform-created)
 │   ├── Log Analytics
 │   ├── Key Vault
 │   ├── AKS (Team Alpha)
@@ -577,17 +573,15 @@ Azure Subscription
 │   ├── Container App Env (Team Beta)
 │   └── PostgreSQL (Team Beta)
 │
-├── rg-contoso-dev-crm-001 (Pattern 2 - CRM's Independent Network)
-│   ├── VNet: 10.2.0.0/16 + Subnets
-│   ├── NSG
+├── rg-contoso-dev-crm-001 (Pattern 2 CRM - Applications Only)
+│   ├── (Reads VNet 10.2.x from Platform via data sources)
 │   ├── App Service
 │   ├── CosmosDB
 │   ├── Key Vault
 │   └── Managed Identity
 │
-└── rg-contoso-dev-ecommerce-001 (Pattern 2 - E-commerce's Independent Network)
-    ├── VNet: 10.3.0.0/16 + Subnets
-    ├── NSG
+└── rg-contoso-dev-ecommerce-001 (Pattern 2 E-commerce - Applications Only)
+    ├── (Reads VNet 10.3.x from Platform via data sources)
     ├── AKS
     ├── CosmosDB
     ├── Key Vault
@@ -599,10 +593,11 @@ Azure Subscription
 | Point | How You Say It |
 |-------|----------------|
 | **Consistency** | "All teams use the same naming convention, same tags, same modules" |
-| **Independence** | "Pattern 2 teams deploy without asking anyone" |
-| **Safety** | "Each team's state is separate - mistakes are isolated" |
+| **Governance** | "Platform team creates all VNets with standards - Pattern 2 teams read via data sources" |
+| **Independence** | "Pattern 2 teams deploy apps independently - separate state files" |
+| **Safety** | "Each team's state is separate - app mistakes don't affect networking" |
 | **Simplicity** | "Pattern 1 uses boolean toggles - just true/false" |
-| **Reusability** | "The AKS module is used in both Pattern 1 and Pattern 2" |
+| **Reusability** | "The networking module is reused for all 3 VNets - no reinventing the wheel!" |
 | **Cost tracking** | "Tags show which team and cost center each resource belongs to" |
 
 ### Common Client Questions
@@ -610,10 +605,10 @@ Azure Subscription
 | Question | Answer |
 |----------|--------|
 | "What if Team Alpha needs to change AKS settings?" | "In Pattern 1, they ask Andi. In Pattern 2, they change their own `dev.tfvars` - complete independence!" |
-| "Can two teams deploy to the same resource group?" | "Pattern 1: Yes, they share one RG. Pattern 2: No, each team has their own RG AND own VNet." |
-| "What if someone accidentally deletes a VNet?" | "Pattern 1: Protected by `prevent_deletion_if_contains_resources = true`. Pattern 2: Each team owns their VNet (10.2.x, 10.3.x) - isolated, can't affect others!" |
-| "How do Pattern 2 teams communicate if needed?" | "By default, isolated. Can add VNet peering if cross-team communication needed (advanced topic)." |
-| "How do we move from Pattern 1 to Pattern 2?" | "Gradually. Start with shared infra in Pattern 1, then teams extract to Pattern 2 folders with own VNets." |
+| "Can two teams deploy to the same resource group?" | "Pattern 1: Yes, they share one RG. Pattern 2: No, each team has their own RG (but reads Platform's VNet)." |
+| "What if someone accidentally deletes a VNet?" | "Platform team manages all VNets centrally - Pattern 2 teams can't delete networking! They only manage apps. Shows governance in action!" |
+| "How do Pattern 2 teams communicate if needed?" | "All apps are isolated in separate VNets. Can add VNet peering if cross-team communication needed (advanced topic)." |
+| "How do we move from Pattern 1 to Pattern 2?" | "Platform team creates new VNet for the app. Team extracts to Pattern 2 folder, reads VNet via data sources." |
 | "What about production?" | "Same framework! Just change `dev.tfvars` to `prod.tfvars` with stronger settings (more nodes, encryption, private endpoints, etc.)" |
 
 ---

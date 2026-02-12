@@ -2,20 +2,20 @@
 
 terraform {
   required_version = ">= 1.6.0"
-  
+
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
       version = "~> 3.80"
     }
   }
-  
+
   # Remote state storage
   backend "azurerm" {
     resource_group_name  = "rg-contoso-dev-tfstate-001"
     storage_account_name = "stcontosodevtfstate001"
     container_name       = "tfstate"
-    key                  = "dev-app-ecommerce.tfstate"  # Separate state per app
+    key                  = "dev-app-ecommerce.tfstate" # Separate state per app
   }
 }
 
@@ -32,10 +32,23 @@ provider "azurerm" {
 }
 
 # ============================================================================
-# DATA SOURCES
+# DATA SOURCES - Read Platform team's infrastructure
 # ============================================================================
 
 data "azurerm_client_config" "current" {}
+
+# Read E-commerce's dedicated VNet (created by Platform team in Pattern 1)
+data "azurerm_virtual_network" "ecommerce" {
+  name                = "vnet-contoso-dev-ecommerce-001"
+  resource_group_name = "contoso-platform-rg-dev"
+}
+
+# Read E-commerce's AKS subnet
+data "azurerm_subnet" "ecom_aks" {
+  name                 = "ecom-aks-subnet"
+  virtual_network_name = data.azurerm_virtual_network.ecommerce.name
+  resource_group_name  = data.azurerm_virtual_network.ecommerce.resource_group_name
+}
 
 # ============================================================================
 # NAMING MODULE
@@ -43,7 +56,7 @@ data "azurerm_client_config" "current" {}
 
 module "naming" {
   source = "../../../infra/modules/_shared"
-  
+
   project_name = "${var.company_name}-${var.workload}"
   environment  = var.environment
   location     = var.location
@@ -56,30 +69,7 @@ module "naming" {
 resource "azurerm_resource_group" "ecommerce" {
   name     = "rg-${var.company_name}-${var.environment}-${var.workload}-001"
   location = var.location
-  
-  tags = merge(var.default_tags, {
-    Application = "E-commerce API"
-    Team        = "E-commerce Team"
-  })
-}
 
-# ============================================================================
-# NETWORKING (E-commerce's Own VNet - 10.3.0.0/16)
-# ============================================================================
-
-module "networking" {
-  source = "../../../infra/modules/networking"
-  
-  resource_group_name = azurerm_resource_group.ecommerce.name
-  network_name        = "vnet-${var.company_name}-${var.environment}-${var.workload}-001"
-  location            = azurerm_resource_group.ecommerce.location
-  address_space       = var.vnet_address_space
-  
-  subnets = var.subnets
-  
-  network_security_groups = var.network_security_groups
-  subnet_nsg_associations = var.subnet_nsg_associations
-  
   tags = merge(var.default_tags, {
     Application = "E-commerce API"
     Team        = "E-commerce Team"
@@ -93,7 +83,7 @@ module "networking" {
 # Reference existing AKS cluster (deployed by platform team or shared)
 data "azurerm_kubernetes_cluster" "shared" {
   count = var.use_shared_aks ? 1 : 0
-  
+
   name                = "aks-${var.company_name}-${var.environment}-001"
   resource_group_name = "rg-${var.company_name}-${var.environment}-aks-001"
 }
@@ -101,35 +91,35 @@ data "azurerm_kubernetes_cluster" "shared" {
 # OR deploy dedicated AKS (if needed)
 resource "azurerm_kubernetes_cluster" "dedicated" {
   count = var.use_shared_aks ? 0 : 1
-  
+
   name                = "aks-${var.company_name}-${var.environment}-${var.workload}-001"
   location            = azurerm_resource_group.ecommerce.location
   resource_group_name = azurerm_resource_group.ecommerce.name
   dns_prefix          = "aks-${var.company_name}-${var.environment}-${var.workload}"
-  
+
   kubernetes_version = var.kubernetes_version
-  
+
   default_node_pool {
     name                = "default"
     node_count          = var.aks_node_count
     vm_size             = var.aks_vm_size
-    vnet_subnet_id      = module.networking.subnet_ids["aks-subnet"]
+    vnet_subnet_id      = data.azurerm_subnet.ecom_aks.id
     enable_auto_scaling = true
     min_count           = 1
     max_count           = 5
   }
-  
+
   identity {
     type = "SystemAssigned"
   }
-  
+
   network_profile {
-    network_plugin    = "azure"
-    network_policy    = "azure"
-    service_cidr      = "10.2.0.0/16"
-    dns_service_ip    = "10.2.0.10"
+    network_plugin = "azure"
+    network_policy = "azure"
+    service_cidr   = "10.2.0.0/16"
+    dns_service_ip = "10.2.0.10"
   }
-  
+
   tags = merge(var.default_tags, {
     Application = "E-commerce API"
   })
@@ -145,20 +135,20 @@ resource "azurerm_cosmosdb_account" "ecommerce" {
   resource_group_name = azurerm_resource_group.ecommerce.name
   offer_type          = "Standard"
   kind                = "GlobalDocumentDB"
-  
+
   consistency_policy {
     consistency_level = var.cosmos_consistency_level
   }
-  
+
   geo_location {
     location          = azurerm_resource_group.ecommerce.location
     failover_priority = 0
   }
-  
+
   # Public access with IP rules (dev environment)
   public_network_access_enabled = true
-  ip_range_filter              = var.cosmos_allowed_ips
-  
+  ip_range_filter               = var.cosmos_allowed_ips
+
   tags = merge(var.default_tags, {
     Application = "E-commerce API"
   })
@@ -211,17 +201,17 @@ resource "azurerm_key_vault" "ecommerce" {
   resource_group_name = azurerm_resource_group.ecommerce.name
   tenant_id           = data.azurerm_client_config.current.tenant_id
   sku_name            = "standard"
-  
+
   # Allow current user to manage secrets
   access_policy {
     tenant_id = data.azurerm_client_config.current.tenant_id
     object_id = data.azurerm_client_config.current.object_id
-    
+
     secret_permissions = [
       "Get", "List", "Set", "Delete", "Purge"
     ]
   }
-  
+
   tags = merge(var.default_tags, {
     Application = "E-commerce API"
   })
@@ -242,7 +232,7 @@ resource "azurerm_user_assigned_identity" "ecommerce" {
   name                = "id-${var.company_name}-${var.environment}-${var.workload}-001"
   location            = azurerm_resource_group.ecommerce.location
   resource_group_name = azurerm_resource_group.ecommerce.name
-  
+
   tags = merge(var.default_tags, {
     Application = "E-commerce API"
   })
@@ -253,7 +243,7 @@ resource "azurerm_key_vault_access_policy" "app_identity" {
   key_vault_id = azurerm_key_vault.ecommerce.id
   tenant_id    = data.azurerm_client_config.current.tenant_id
   object_id    = azurerm_user_assigned_identity.ecommerce.principal_id
-  
+
   secret_permissions = [
     "Get", "List"
   ]

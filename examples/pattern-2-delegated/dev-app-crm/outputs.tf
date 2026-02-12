@@ -52,27 +52,17 @@ output "managed_identity_client_id" {
 }
 
 # ============================================================================
-# NETWORKING OUTPUTS
+# NETWORKING REFERENCE (Read from Platform team)
 # ============================================================================
 
-output "vnet_id" {
-  description = "CRM VNet ID"
-  value       = module.networking.vnet_id
+output "vnet_name_used" {
+  description = "VNet name (created by Platform team)"
+  value       = data.azurerm_virtual_network.crm.name
 }
 
-output "vnet_name" {
-  description = "CRM VNet name"
-  value       = module.networking.vnet_name
-}
-
-output "subnet_ids" {
-  description = "CRM subnet IDs"
-  value       = module.networking.subnet_ids
-}
-
-output "app_subnet_id" {
-  description = "CRM App subnet ID (for VNet integration)"
-  value       = module.networking.subnet_ids["app-subnet"]
+output "subnet_id_used" {
+  description = "Subnet ID used for App Service"
+  value       = data.azurerm_subnet.crm_app.id
 }
 
 # ============================================================================

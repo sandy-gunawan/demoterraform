@@ -168,7 +168,7 @@ variable "aks_node_count" {
 variable "aks_node_size" {
   description = "AKS node VM size"
   type        = string
-  default     = "Standard_D8ds_v5"  # Available in indonesiacentral
+  default     = "Standard_D8ds_v5" # Available in indonesiacentral
 }
 
 # =============================================================================
@@ -208,5 +208,5 @@ variable "cosmosdb_containers" {
 variable "cosmosdb_backup_storage_redundancy" {
   description = "Cosmos DB backup storage redundancy (Geo, Local, Zone) - Not all regions support Geo"
   type        = string
-  default     = "Local"  # Indonesia Central doesn't support Geo-redundant backup
+  default     = "Local" # Indonesia Central doesn't support Geo-redundant backup
 }

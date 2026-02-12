@@ -1,8 +1,7 @@
 # Document 04: Pattern 1 vs Pattern 2 Explained
 
-> **🎉 UPDATED:** Pattern 2 apps now create their **own VNets** (10.2.x, 10.3.x)!  
-> **No dependencies on Pattern 1!** Each team is fully independent.  
-> See [SEPARATE-VNETS-MIGRATION.md](SEPARATE-VNETS-MIGRATION.md) for details.
+> **✨ KEY ARCHITECTURE:** Platform team creates **all VNets** (including Pattern 2 app VNets)!  
+> Pattern 2 teams **read** VNets via data sources → Showcases framework reusability!
 
 ---
 
@@ -10,11 +9,12 @@
 
 This framework supports **two patterns** for organizing how teams deploy infrastructure. Understanding when to use each pattern is critical for a successful client demo.
 
-**Key Update:** Pattern 2 teams now create their OWN networking (VNets, subnets, NSGs) instead of sharing Pattern 1's network. This means:
-- ✅ **No coordination needed** between Platform team and app teams
-- ✅ **Deploy in any order** - Pattern 2 doesn't wait for Pattern 1
-- ✅ **Perfect for CI/CD** - Each team has independent pipelines
-- ✅ **Network isolation** - CRM (10.2.x.x), E-commerce (10.3.x.x)
+**Core Architecture Principle:** Platform team governs networking, Pattern 2 teams focus on applications:
+- ✅ **Platform creates all VNets** - Standardized networking (10.1.x, 10.2.x, 10.3.x)
+- ✅ **Pattern 2 reads via data sources** - Reuses networking module (no duplication!)
+- ✅ **Separate state files** - Team independence for applications
+- ✅ **Network isolation** - Each app has dedicated VNet
+- ✅ **Shows framework value** - Governance + reusability + team autonomy
 
 ---
 

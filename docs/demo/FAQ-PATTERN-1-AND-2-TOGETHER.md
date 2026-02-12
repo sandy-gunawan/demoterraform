@@ -1,9 +1,9 @@
 # Can You Use Both Pattern 1 and Pattern 2 at the Same Time?
 
-## **YES! And now they're completely independent!**
+## **YES! Platform creates all VNets, Pattern 2 teams focus on apps!**
 
-> **🎉 UPDATED:** Pattern 2 apps create their **own VNets** now!  
-> No need to share Pattern 1's network. Each team fully independent.
+> **✨ KEY ARCHITECTURE:** Platform team creates **all 3 VNets** (including Pattern 2 app VNets).  
+> Pattern 2 teams **read** VNets via data sources → Focus on applications only!
 
 ---
 
@@ -11,39 +11,40 @@
 
 **Q: "Can I use Pattern 1 AND Pattern 2 at the same time?"**
 
-**A: YES, absolutely!** And it's even BETTER now because:
-- ✅ Pattern 2 doesn't depend on Pattern 1 network
-- ✅ Each Pattern 2 team creates their own VNet
-- ✅ Deploy in any order (Pattern 2 first is fine!)
-- ✅ Perfect for demos and CI/CD
+**A: YES, absolutely!** This architecture shows the framework's true value:
+- ✅ Platform team governs networking (creates all 3 VNets)
+- ✅ Pattern 2 teams read VNets via data sources (reusability!)
+- ✅ Pattern 2 teams focus on apps (no networking code duplication)
+- ✅ Separate state files (team independence)
+- ✅ Network isolation (each app has dedicated VNet)
 
 ---
 
-## How It Works (NEW ARCHITECTURE!)
+## How It Works (Platform-Managed Networking!)
 
 ```
-Pattern 1 (Optional - for shared resources):
+Pattern 1 (Platform team creates ALL VNets):
 ========================================================
-VNet: 10.1.0.0/16
-Resources: Shared AKS, Shared CosmosDB
+VNet 1: 10.1.0.0/16 (shared services)
+VNet 2: 10.2.0.0/16 (CRM app - Platform-created!)
+VNet 3: 10.3.0.0/16 (E-commerce app - Platform-created!)
+Resources: Shared AKS, Shared CosmosDB, Log Analytics
 State file: dev.terraform.tfstate
 
-Pattern 2 CRM (Completely Independent!):
+Pattern 2 CRM (Reads Platform's VNet):
 ========================================================
-VNet: 10.2.0.0/16 ← CRM's OWN VNet!
-Subnets: 10.2.1.0/24 (app), 10.2.2.0/24 (db)
-Resources: Own App Service, Own CosmosDB
-State file: dev-app-crm.tfstate
+Reads: data.azurerm_virtual_network.crm (10.2.0.0/16)
+Creates: App Service, CosmosDB, Key Vault, Managed Identity
+State file: dev-app-crm.tfstate (SEPARATE!)
 
-Pattern 2 E-commerce (Completely Independent!):
+Pattern 2 E-commerce (Reads Platform's VNet):
 ========================================================
-VNet: 10.3.0.0/16 ← E-commerce's OWN VNet!
-Subnets: 10.3.1.0/24 (aks), 10.3.2.0/24 (db)
-Resources: Own AKS, Own CosmosDB  
-State file: dev-app-ecommerce.tfstate
+Reads: data.azurerm_virtual_network.ecommerce (10.3.0.0/16)
+Creates: AKS, CosmosDB, Key Vault, Managed Identity
+State file: dev-app-ecommerce.tfstate (SEPARATE!)
 ```
 
-**Result: 3 isolated VNets, all working simultaneously!**
+**Result: Platform governs, teams build apps, everyone benefits!**
 
 ---
 

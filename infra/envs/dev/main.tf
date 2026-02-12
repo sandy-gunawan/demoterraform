@@ -40,7 +40,7 @@ resource "azurerm_resource_group" "main" {
 # =============================================================================
 module "global_standards" {
   source = "../../global"
-  
+
   organization_name = var.organization_name
   project_name      = var.project_name
   environment       = "dev"
@@ -100,6 +100,132 @@ module "networking" {
 }
 
 # =============================================================================
+# PATTERN 2 NETWORKING - VNets for Delegated Teams
+# =============================================================================
+# Platform team creates SEPARATE VNets for Pattern 2 teams.
+# This shows framework's governance while providing isolation:
+# - Platform controls: IP ranges, security rules, naming standards
+# - Teams get: Isolated networks, focus on apps not infrastructure
+# - Framework value: Reusable, consistent, governed
+#
+# Pattern 2 teams use DATA SOURCES to read these VNets (see examples/).
+# =============================================================================
+
+# CRM Team's Dedicated VNet (10.2.0.0/16)
+module "networking_crm" {
+  source = "../../modules/networking"
+
+  resource_group_name = azurerm_resource_group.main.name
+  network_name        = "vnet-${var.project_name}-dev-crm-001"
+  location            = var.location
+  address_space       = ["10.2.0.0/16"]
+
+  subnets = {
+    "crm-app-subnet" = {
+      address_prefixes  = ["10.2.1.0/24"]
+      service_endpoints = ["Microsoft.Web", "Microsoft.AzureCosmosDB", "Microsoft.KeyVault"]
+    }
+    "crm-db-subnet" = {
+      address_prefixes  = ["10.2.2.0/24"]
+      service_endpoints = ["Microsoft.AzureCosmosDB"]
+    }
+  }
+
+  network_security_groups = {
+    "crm-app-nsg" = {
+      security_rules = {
+        "allow-https" = {
+          priority                   = 100
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "443"
+          source_address_prefix      = "*"
+          destination_address_prefix = "*"
+        }
+        "allow-http" = {
+          priority                   = 110
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "80"
+          source_address_prefix      = "*"
+          destination_address_prefix = "*"
+        }
+      }
+    }
+  }
+
+  subnet_nsg_associations = {
+    "crm-app-subnet" = "crm-app-nsg"
+  }
+
+  tags = merge(module.global_standards.common_tags, {
+    Team    = "CRM"
+    Pattern = "Pattern2"
+  })
+}
+
+# E-commerce Team's Dedicated VNet (10.3.0.0/16)
+module "networking_ecommerce" {
+  source = "../../modules/networking"
+
+  resource_group_name = azurerm_resource_group.main.name
+  network_name        = "vnet-${var.project_name}-dev-ecommerce-001"
+  location            = var.location
+  address_space       = ["10.3.0.0/16"]
+
+  subnets = {
+    "ecom-aks-subnet" = {
+      address_prefixes  = ["10.3.1.0/24"]
+      service_endpoints = ["Microsoft.ContainerRegistry", "Microsoft.AzureCosmosDB"]
+    }
+    "ecom-db-subnet" = {
+      address_prefixes  = ["10.3.2.0/24"]
+      service_endpoints = ["Microsoft.AzureCosmosDB"]
+    }
+  }
+
+  network_security_groups = {
+    "ecom-aks-nsg" = {
+      security_rules = {
+        "allow-https" = {
+          priority                   = 100
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "443"
+          source_address_prefix      = "*"
+          destination_address_prefix = "*"
+        }
+        "allow-http" = {
+          priority                   = 110
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "80"
+          source_address_prefix      = "*"
+          destination_address_prefix = "*"
+        }
+      }
+    }
+  }
+
+  subnet_nsg_associations = {
+    "ecom-aks-subnet" = "ecom-aks-nsg"
+  }
+
+  tags = merge(module.global_standards.common_tags, {
+    Team    = "E-commerce"
+    Pattern = "Pattern2"
+  })
+}
+
+# =============================================================================
 # LOG ANALYTICS - Always created (need to see what's happening)
 # =============================================================================
 resource "azurerm_log_analytics_workspace" "main" {
@@ -135,12 +261,12 @@ module "security" {
   source = "../../modules/security"
 
   resource_group_name = azurerm_resource_group.main.name
-  key_vault_name      = "${var.project_name}kvdev"  # Alphanumeric + hyphens, 3-24 chars
+  key_vault_name      = "${var.project_name}kvdev" # Alphanumeric + hyphens, 3-24 chars
   location            = var.location
   tenant_id           = var.tenant_id
 
   # Feature toggles
-  purge_protection_enabled   = var.key_vault_purge_protection
+  purge_protection_enabled    = var.key_vault_purge_protection
   network_acls_default_action = var.network_acl_default_action
 
   tags = module.global_standards.common_tags
@@ -162,8 +288,8 @@ module "aks" {
   vnet_subnet_id = module.networking.subnet_ids["aks-subnet"]
 
   # Scaling - Dev uses fixed small size
-  node_count     = var.aks_node_count
-  vm_size        = var.aks_node_size
+  node_count          = var.aks_node_count
+  vm_size             = var.aks_node_size
   enable_auto_scaling = var.enable_auto_scaling
 
   # Monitoring
@@ -200,15 +326,15 @@ module "cosmosdb" {
   source = "../../modules/cosmosdb"
 
   resource_group_name = azurerm_resource_group.main.name
-  account_name        = "${var.project_name}cosmosdev"  # No hyphens
+  account_name        = "${var.project_name}cosmosdev" # No hyphens
   location            = var.location
 
   # Feature toggles - Dev uses minimal settings
   enable_automatic_failover       = false
   enable_multiple_write_locations = false
-  public_network_access_enabled   = true  # Public access OK for dev
+  public_network_access_enabled   = true # Public access OK for dev
   backup_type                     = "Periodic"
-  backup_storage_redundancy       = var.cosmosdb_backup_storage_redundancy  # Use variable for regional support
+  backup_storage_redundancy       = var.cosmosdb_backup_storage_redundancy # Use variable for regional support
 
   tags = module.global_standards.common_tags
 }
@@ -225,7 +351,7 @@ module "webapp" {
   location            = var.location
 
   # SKU - Dev uses free/basic tier
-  sku_name = "F1"  # Free tier for dev
+  sku_name = "F1" # Free tier for dev
 
   tags = module.global_standards.common_tags
 }

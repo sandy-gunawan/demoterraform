@@ -2,20 +2,20 @@
 
 terraform {
   required_version = ">= 1.6.0"
-  
+
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
       version = "~> 3.80"
     }
   }
-  
+
   # Remote state storage
   backend "azurerm" {
     resource_group_name  = "rg-contoso-dev-tfstate-001"
     storage_account_name = "stcontosodevtfstate001"
     container_name       = "tfstate"
-    key                  = "dev-app-crm.tfstate"  # Separate state per app
+    key                  = "dev-app-crm.tfstate" # Separate state per app
   }
 }
 
@@ -32,10 +32,23 @@ provider "azurerm" {
 }
 
 # ============================================================================
-# DATA SOURCES
+# DATA SOURCES - Read Platform team's infrastructure
 # ============================================================================
 
 data "azurerm_client_config" "current" {}
+
+# Read CRM's dedicated VNet (created by Platform team in Pattern 1)
+data "azurerm_virtual_network" "crm" {
+  name                = "vnet-contoso-dev-crm-001"
+  resource_group_name = "contoso-platform-rg-dev"
+}
+
+# Read CRM's app subnet
+data "azurerm_subnet" "crm_app" {
+  name                 = "crm-app-subnet"
+  virtual_network_name = data.azurerm_virtual_network.crm.name
+  resource_group_name  = data.azurerm_virtual_network.crm.resource_group_name
+}
 
 # ============================================================================
 # NAMING MODULE
@@ -43,7 +56,7 @@ data "azurerm_client_config" "current" {}
 
 module "naming" {
   source = "../../../infra/modules/_shared"
-  
+
   project_name = "${var.company_name}-${var.workload}"
   environment  = var.environment
   location     = var.location
@@ -56,30 +69,7 @@ module "naming" {
 resource "azurerm_resource_group" "crm" {
   name     = "rg-${var.company_name}-${var.environment}-${var.workload}-001"
   location = var.location
-  
-  tags = merge(var.default_tags, {
-    Application = "CRM System"
-    Team        = "CRM Team"
-  })
-}
 
-# ============================================================================
-# NETWORKING (CRM's Own VNet - 10.2.0.0/16)
-# ============================================================================
-
-module "networking" {
-  source = "../../../infra/modules/networking"
-  
-  resource_group_name = azurerm_resource_group.crm.name
-  network_name        = "vnet-${var.company_name}-${var.environment}-${var.workload}-001"
-  location            = azurerm_resource_group.crm.location
-  address_space       = var.vnet_address_space
-  
-  subnets = var.subnets
-  
-  network_security_groups = var.network_security_groups
-  subnet_nsg_associations = var.subnet_nsg_associations
-  
   tags = merge(var.default_tags, {
     Application = "CRM System"
     Team        = "CRM Team"
@@ -97,7 +87,7 @@ resource "azurerm_service_plan" "crm" {
   resource_group_name = azurerm_resource_group.crm.name
   os_type             = "Linux"
   sku_name            = var.app_service_sku
-  
+
   tags = merge(var.default_tags, {
     Application = "CRM System"
   })
@@ -109,30 +99,30 @@ resource "azurerm_linux_web_app" "crm" {
   location            = azurerm_resource_group.crm.location
   resource_group_name = azurerm_resource_group.crm.name
   service_plan_id     = azurerm_service_plan.crm.id
-  
+
   site_config {
     always_on = true
-    
+
     application_stack {
       node_version = "18-lts"
     }
   }
-  
+
   identity {
     type = "UserAssigned"
     identity_ids = [
       azurerm_user_assigned_identity.crm.id
     ]
   }
-  
+
   app_settings = {
-    "COSMOS_ENDPOINT"       = azurerm_cosmosdb_account.crm.endpoint
-    "COSMOS_DATABASE"       = azurerm_cosmosdb_sql_database.crm.name
-    "KEY_VAULT_NAME"        = azurerm_key_vault.crm.name
-    "AZURE_CLIENT_ID"       = azurerm_user_assigned_identity.crm.client_id
-    "WEBSITES_PORT"         = "3000"
+    "COSMOS_ENDPOINT" = azurerm_cosmosdb_account.crm.endpoint
+    "COSMOS_DATABASE" = azurerm_cosmosdb_sql_database.crm.name
+    "KEY_VAULT_NAME"  = azurerm_key_vault.crm.name
+    "AZURE_CLIENT_ID" = azurerm_user_assigned_identity.crm.client_id
+    "WEBSITES_PORT"   = "3000"
   }
-  
+
   tags = merge(var.default_tags, {
     Application = "CRM System"
   })
@@ -148,20 +138,20 @@ resource "azurerm_cosmosdb_account" "crm" {
   resource_group_name = azurerm_resource_group.crm.name
   offer_type          = "Standard"
   kind                = "GlobalDocumentDB"
-  
+
   consistency_policy {
     consistency_level = var.cosmos_consistency_level
   }
-  
+
   geo_location {
     location          = azurerm_resource_group.crm.location
     failover_priority = 0
   }
-  
+
   # Public access with IP rules (dev environment)
   public_network_access_enabled = true
-  ip_range_filter              = var.cosmos_allowed_ips
-  
+  ip_range_filter               = var.cosmos_allowed_ips
+
   tags = merge(var.default_tags, {
     Application = "CRM System"
   })
@@ -204,17 +194,17 @@ resource "azurerm_key_vault" "crm" {
   resource_group_name = azurerm_resource_group.crm.name
   tenant_id           = data.azurerm_client_config.current.tenant_id
   sku_name            = "standard"
-  
+
   # Allow current user to manage secrets
   access_policy {
     tenant_id = data.azurerm_client_config.current.tenant_id
     object_id = data.azurerm_client_config.current.object_id
-    
+
     secret_permissions = [
       "Get", "List", "Set", "Delete", "Purge"
     ]
   }
-  
+
   tags = merge(var.default_tags, {
     Application = "CRM System"
   })
@@ -235,7 +225,7 @@ resource "azurerm_user_assigned_identity" "crm" {
   name                = "id-${var.company_name}-${var.environment}-${var.workload}-001"
   location            = azurerm_resource_group.crm.location
   resource_group_name = azurerm_resource_group.crm.name
-  
+
   tags = merge(var.default_tags, {
     Application = "CRM System"
   })
@@ -246,7 +236,7 @@ resource "azurerm_key_vault_access_policy" "app_identity" {
   key_vault_id = azurerm_key_vault.crm.id
   tenant_id    = data.azurerm_client_config.current.tenant_id
   object_id    = azurerm_user_assigned_identity.crm.principal_id
-  
+
   secret_permissions = [
     "Get", "List"
   ]
