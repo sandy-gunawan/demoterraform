@@ -1,8 +1,11 @@
 # =============================================================================
-# PRODUCTION ENVIRONMENT - Full security & reliability
+# PRODUCTION ENVIRONMENT - Application Layer (Full security & reliability)
 # =============================================================================
 # Philosophy: Maximum security, high availability, compliance-ready
 # Monthly cost estimate: $2,000-8,000+
+#
+# ⚠️  PREREQUISITE: Deploy platform layer FIRST!
+#    cd infra/platform/prod && terraform apply -var-file="prod.tfvars"
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -13,7 +16,6 @@ project_name      = "contoso"
 location          = "indonesiacentral" # Jakarta - Indonesia datacenter region
 
 # Azure AD Configuration
-# Get your tenant ID: az account show --query tenantId -o tsv
 tenant_id = "00000000-0000-0000-0000-000000000000" # TODO: Replace with your tenant ID
 
 # Governance
@@ -29,17 +31,6 @@ enable_aks            = true  # Kubernetes cluster
 enable_container_apps = false # Alternative to AKS (pick one)
 enable_webapp         = false # If you need App Service
 enable_cosmosdb       = true  # Database
-enable_key_vault      = true  # Secrets management (always)
-
-# -----------------------------------------------------------------------------
-# Security Features - ALL ENABLED
-# Production requires maximum security
-# -----------------------------------------------------------------------------
-enable_nat_gateway         = true   # Control outbound traffic
-enable_private_endpoints   = true   # No public access to data
-enable_ddos_protection     = true   # Protect against DDoS attacks
-key_vault_purge_protection = true   # Prevent accidental secret deletion
-network_acl_default_action = "Deny" # Deny all, whitelist allowed
 
 # -----------------------------------------------------------------------------
 # Monitoring - FULL monitoring
@@ -47,7 +38,6 @@ network_acl_default_action = "Deny" # Deny all, whitelist allowed
 # -----------------------------------------------------------------------------
 enable_application_insights = true # App performance monitoring
 enable_diagnostic_settings  = true # All resource logs
-log_retention_days          = 90   # 3 months (increase for compliance)
 
 # -----------------------------------------------------------------------------
 # Scaling & Reliability - FULL HA

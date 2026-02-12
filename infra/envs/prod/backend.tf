@@ -1,25 +1,18 @@
-# Terraform Backend Configuration for Production Environment
-#
-# This file configures where Terraform stores its "state" for the PRODUCTION environment.
+# Terraform Backend Configuration for Production Environment (Application Layer)
 #
 # PRODUCTION BEST PRACTICES:
 # 1. State file is separate from dev/staging (prod.terraform.tfstate)
 # 2. Consider using a separate storage account for prod state
 # 3. Enable soft delete on storage account (recover accidentally deleted state)
-# 4. Restrict access to the storage account (limit who can modify prod)
-# 5. Enable storage account firewall (only allow Azure DevOps/CI-CD)
 #
-# BACKEND NAMING (MUST match across all environments):
-#   Resource Group:    contoso-tfstate-rg
-#   Storage Account:   stcontosotfstate001
-#   Container:         tfstate
+# STATE FILE KEYS (Layered Infrastructure):
+#   Layer 1 - Platform:
+#     platform-prod.tfstate       <- Platform layer (infra/platform/prod/)
+#   Layer 2 - Applications:
+#     prod.terraform.tfstate      <- THIS file (Production apps)
 #
-# STATE FILE KEYS:
-#   dev.terraform.tfstate       <- Dev environment
-#   staging.terraform.tfstate   <- Staging environment
-#   prod.terraform.tfstate      <- THIS file (Production)
-#   dev-app-crm.tfstate         <- CRM team (Pattern 2)
-#   dev-app-ecommerce.tfstate   <- E-commerce team (Pattern 2)
+# ⚠️  PREREQUISITE: Deploy platform layer FIRST!
+#    cd infra/platform/prod && terraform apply -var-file="prod.tfvars"
 
 terraform {
   backend "azurerm" {

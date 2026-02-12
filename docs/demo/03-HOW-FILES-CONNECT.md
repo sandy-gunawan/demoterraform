@@ -12,19 +12,22 @@ The framework is organized in **layers**. Each layer builds on the one below it:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  LAYER 3: Applications / Workloads                          │
+│  LAYER 2: Applications / Workloads                          │
 │  (Pattern 1: infra/envs/dev/main.tf)                        │
 │  (Pattern 2: examples/pattern-2-delegated/dev-app-*/main.tf)│
 │                                                              │
 │  Creates: AKS, CosmosDB, ContainerApps, PostgreSQL, etc.    │
+│  Reads: VNets, Subnets, Log Analytics from Platform layer   │
 ├─────────────────────────────────────────────────────────────┤
-│  LAYER 2: Networking / Landing Zone                          │
-│  (infra/modules/networking/ or infra/modules/landing-zone/)  │
+│  LAYER 1: Platform Infrastructure                            │
+│  (infra/platform/dev/, staging/, prod/)                      │
 │                                                              │
-│  Creates: VNet, Subnets, NSGs, NAT Gateway                  │
+│  Creates: VNets, Subnets, NSGs, NAT Gateway, Log Analytics  │
+│  Creates: Key Vault, DDoS Protection (prod)                 │
+│  Separate state file: platform-dev.tfstate                   │
 ├─────────────────────────────────────────────────────────────┤
-│  LAYER 1: Reusable Modules                                   │
-│  (infra/modules/aks/, cosmosdb/, postgresql/, etc.)          │
+│  LAYER 0.5: Reusable Modules                                │
+│  (infra/modules/aks/, cosmosdb/, networking/, etc.)          │
 │                                                              │
 │  Provides: Ready-to-use building blocks                      │
 ├─────────────────────────────────────────────────────────────┤
@@ -131,16 +134,18 @@ resource "azurerm_resource_group" "main" {
                     │ • naming            │
                     └─────────┬────────────┘
                               │
-              ┌───────────────┼───────────────┐
-              ▼               ▼               ▼
-    infra/envs/dev/     infra/envs/staging/ infra/envs/prod/
-    ┌──────────────┐    ┌──────────────┐   ┌──────────────┐
-    │ module       │    │ module       │   │ module       │
-    │ "global_std" │    │ "global_std" │   │ "global_std" │
-    │ { source=    │    │ { source=    │   │ { source=    │
-    │   "../../    │    │   "../../    │   │   "../../    │
-    │   global" }  │    │   global" }  │   │   global" }  │
-    └──────────────┘    └──────────────┘   └──────────────┘
+     ┌────────────────────────┼───────────────────────┐
+     ▼                        ▼                       ▼
+ infra/platform/       infra/envs/              examples/pattern-2/
+ ┌──────────────┐    ┌──────────────┐         ┌──────────────┐
+ │ Platform     │    │ App Layer    │         │ App Teams    │
+ │ (VNets, Sec) │    │ (AKS, DB)   │         │ (CRM, Ecom)  │
+ │ module       │    │ module       │         │ module       │
+ │ "global_std" │    │ "global_std" │         │ "global_std" │
+ └──────┬───────┘    └──────┬───────┘         └──────────────┘
+        │                   │
+        └───data sources────┘
+  (apps READ VNets from platform)
 ```
 
 ---
@@ -290,14 +295,22 @@ module "container_apps" {
 
 ---
 
-## Layer 3: Environments (`infra/envs/`)
+## Layer 2: Environments (`infra/envs/`) — Application Layer
+
+### How It Works: Layered Infrastructure
+
+The `infra/envs/` folder is now the **Application Layer**. It does NOT create VNets or Security — those are in the **Platform Layer** (`infra/platform/`). Instead, it READS platform resources via `data` sources.
+
+**Deploy order:**
+1. `infra/platform/dev/` → Creates VNets, Security, Monitoring (platform-dev.tfstate)
+2. `infra/envs/dev/` → Creates AKS, CosmosDB, Apps that READ from platform (dev.terraform.tfstate)
 
 ### How an Environment File Orchestrates Everything
 
-The `main.tf` in each environment is the **conductor**. It calls all the other pieces:
+The `main.tf` in each environment is the **conductor**. It reads platform infra and creates apps:
 
 ```hcl
-# File: infra/envs/dev/main.tf - THE ORCHESTRATOR
+# File: infra/envs/dev/main.tf - THE ORCHESTRATOR (Application Layer)
 
 # Import standards (Layer 0)
 module "global_standards" {
@@ -305,23 +318,23 @@ module "global_standards" {
   # ...
 }
 
-# Create foundation
+# Create app resource group
 resource "azurerm_resource_group" "main" { ... }
 
-# Create networking (Layer 2)
-module "networking" {
-  source = "../../modules/networking"
-  # ...
+# READ platform infrastructure (created by infra/platform/dev/)
+data "azurerm_virtual_network" "platform" {
+  name                = "vnet-contoso-dev-001"
+  resource_group_name = "contoso-platform-rg-dev"
 }
+data "azurerm_subnet" "aks" { ... }
+data "azurerm_log_analytics_workspace" "platform" { ... }
 
-# Create monitoring
-resource "azurerm_log_analytics_workspace" "main" { ... }
-
-# Create services (Layer 3) - controlled by feature toggles
+# Create services (Layer 2) - controlled by feature toggles
 module "aks" {
   count  = var.enable_aks ? 1 : 0
   source = "../../modules/aks"
-  # Uses: networking outputs + global_standards
+  vnet_subnet_id = data.azurerm_subnet.aks.id  # ← From platform!
+  # Uses: platform data sources + global_standards
 }
 
 module "cosmosdb" {
@@ -329,18 +342,19 @@ module "cosmosdb" {
   source = "../../modules/cosmosdb"
   # Uses: resource group + global_standards
 }
-
-module "container_apps" {
-  count  = var.enable_container_apps ? 1 : 0
-  source = "../../modules/container-app"
-  # Uses: networking outputs + log analytics + global_standards
-}
 ```
 
 ### Complete Connection Map for `infra/envs/dev/`
 
 ```
-infra/envs/dev/
+infra/platform/dev/ (DEPLOY FIRST — Platform Layer)
+┌─────────────────────────────────────────────────────────────┐
+│  Creates: VNets, Subnets, NSGs, Log Analytics, Key Vault   │
+│  State: platform-dev.tfstate                                │
+└──────────────────────────┬──────────────────────────────────┘
+                           │ (data sources read from platform)
+                           ▼
+infra/envs/dev/ (DEPLOY SECOND — Application Layer)
 ┌─────────────────────────────────────────────────────────────┐
 │                                                              │
 │  backend.tf ─── Configures state storage in Azure           │
@@ -351,15 +365,15 @@ infra/envs/dev/
 │                    ▼                                         │
 │              main.tf (THE ORCHESTRATOR)                      │
 │                    │                                         │
-│        ┌──────────┼──────────┬──────────┐                   │
-│        ▼          ▼          ▼          ▼                    │
-│   ../../global  ../../modules/  ../../modules/  ../../modules/│
-│   (standards)   networking     aks           cosmosdb       │
-│        │          │               │            │             │
-│        ▼          ▼               ▼            ▼             │
-│   common_tags   subnet_ids    cluster_id   endpoint         │
-│        │          │               │            │             │
-│        └──────────┴───────────────┴────────────┘             │
+│     ┌──────────────┼──────────┬──────────┐                  │
+│     ▼              ▼          ▼          ▼                   │
+│  ../../global   data sources  ../../modules/  ../../modules/ │
+│  (standards)    (platform)    aks           cosmosdb         │
+│     │              │              │            │             │
+│     ▼              ▼              ▼            ▼             │
+│  common_tags    subnet_ids    cluster_id   endpoint          │
+│     │              │              │            │             │
+│     └──────────────┴──────────────┴────────────┘             │
 │                          │                                   │
 │                          ▼                                   │
 │                     outputs.tf ── Shows results              │
@@ -372,16 +386,19 @@ infra/envs/dev/
 ## How Pattern 2 (Delegated) Connects Differently
 
 In Pattern 2, app teams have their own `main.tf` that:
-1. **References** shared infrastructure using `data` blocks (reads, doesn't create)
-2. **Creates** their own resources directly
-3. **Uses** shared modules via `source` path
+1. **References** the Platform layer's VNets using `data` blocks (reads, doesn't create)
+2. **Inherits** global standards using `module "global_standards"` (consistent tags)
+3. **Creates** their own resources directly
+4. **Uses** shared modules via `source` path
 
 ```
-Platform Team Creates (shared):
+Platform Layer Creates (shared):
 ┌──────────────────────────────────────────────┐
-│ VNet: vnet-contoso-dev-001                   │
-│ Subnets: aks-subnet, app-subnet              │
-│ Resource Group: rg-contoso-dev-network-001   │
+│ infra/platform/dev/main.tf                   │
+│ VNet: vnet-contoso-dev-crm-001               │
+│ VNet: vnet-contoso-dev-ecommerce-001         │
+│ Resource Group: contoso-platform-rg-dev      │
+│ State: platform-dev.tfstate                  │
 └──────────────────────┬───────────────────────┘
                        │
          ┌─────────────┼─────────────┐
@@ -390,7 +407,9 @@ Platform Team Creates (shared):
   CRM Team (own state)        E-commerce Team (own state)
   ┌────────────────────┐    ┌────────────────────┐
   │ data "azurerm_vnet"│    │ data "azurerm_vnet"│
-  │   reads shared VNet│    │   reads shared VNet│
+  │   reads VNet       │    │   reads VNet       │
+  │ module "global_std"│    │ module "global_std"│
+  │   inherits tags    │    │   inherits tags    │
   │                    │    │                    │
   │ Creates:           │    │ Creates:           │
   │ • App Service      │    │ • AKS Cluster      │
@@ -432,53 +451,43 @@ resource "azurerm_linux_web_app" "crm" {
 ### Pattern 1 (Centralized) - All connections:
 
 ```
-dev.tfvars
-    │ provides values to
-    ▼
-variables.tf
-    │ declares variables used by
-    ▼
-main.tf ──────────────────────────────────────────────────────
-    │         │              │              │              │
-    │    calls module    calls module   calls module   calls module
-    ▼         ▼              ▼              ▼              ▼
-  ../../    ../../modules/  ../../modules/ ../../modules/ ../../modules/
-  global    networking      aks            cosmosdb       container-app
-    │         │              │              │              │
-    │   returns subnet_ids   │              │              │
-    │         │───────────▶──┘              │              │
-    │         │──────────────────────────▶──┘              │
-    │                                                      │
-    │   returns common_tags                                │
-    │─────────▶ applied to ALL resources                   │
-    │                                                      │
-    └──────────────────────────────────────────────────────┘
-                    │
-                    ▼
-              outputs.tf (displays results)
-                    │
-                    ▼
-              backend.tf (saves state to Azure Storage)
+                    infra/platform/dev/ (Platform Layer - deploy FIRST)
+                           │
+                     Creates VNets, Subnets, Log Analytics, Key Vault
+                     State: platform-dev.tfstate
+                           │
+                           ▼
+dev.tfvars ──▶ variables.tf ──▶ main.tf (App Layer)
+                                   │
+                      ┌────────────┼────────────────────────┐
+                      ▼            ▼                        ▼
+                 ../../global   data sources          ../../modules/
+                 (standards)   (platform VNets)       aks, cosmosdb, etc.
+                      │            │                        │
+                      └────────────┴────────────────────────┘
+                                   │
+                              outputs.tf → backend.tf (dev.terraform.tfstate)
 ```
 
 ### Pattern 2 (Delegated) - All connections:
 
 ```
-Platform Team (runs once):
-    infra/envs/dev/main.tf → Creates VNet, Subnets, Log Analytics
-    State file: dev.terraform.tfstate
+Platform Layer (runs once per env):
+    infra/platform/dev/main.tf → Creates VNets, Subnets, Log Analytics
+    State file: platform-dev.tfstate
 
-App Team (runs independently):
+App Layer (runs independently by each team):
     examples/pattern-2-delegated/dev-app-crm/main.tf
         │
-        ├── data "azurerm_virtual_network" → Reads VNet (created by platform team)
-        ├── data "azurerm_subnet"          → Reads Subnet (created by platform team)
+        ├── module "global_standards" (../../infra/global) → Inherits tags!
+        ├── data "azurerm_virtual_network" → Reads VNet (created by platform)
+        ├── data "azurerm_subnet"          → Reads Subnet (created by platform)
         ├── module "naming" (../../infra/modules/_shared) → Uses shared naming
         ├── resource "azurerm_resource_group"  → Creates own RG
         ├── resource "azurerm_cosmosdb_account"→ Creates own CosmosDB
         ├── resource "azurerm_key_vault"       → Creates own Key Vault
         └── resource "azurerm_linux_web_app"   → Creates own Web App
-    State file: dev-app-crm.tfstate (SEPARATE from platform team!)
+    State file: dev-app-crm.tfstate (SEPARATE from platform!)
 ```
 
 ---

@@ -15,7 +15,7 @@ This documentation explains the **Enterprise Terraform Framework for Azure** to 
 | 01 | [Framework Overview](01-FRAMEWORK-OVERVIEW.md) | What this framework is, why it exists, house-building analogy, feature toggles | Everyone |
 | 02 | [Terraform Basics for Beginners](02-TERRAFORM-BASICS.md) | What each Terraform file does, how they connect, what happens when you run `terraform apply` | Developers new to Terraform |
 | 03 | [How Files Connect — The Big Picture](03-HOW-FILES-CONNECT.md) | How `global/`, `modules/`, `envs/`, and `examples/` interact with each other | Developers, DevOps Engineers |
-| 04 | [Pattern 1 Demo — Centralized](04-PATTERN1-DEMO.md) | **Standalone test case**: Platform team deploys all resources with feature toggles | Everyone (main demo #1) |
+| 04 | [Pattern 1 Demo — Centralized](04-PATTERN1-DEMO.md) | **Standalone test case**: Platform layer + Application layer deployment with feature toggles | Everyone (main demo #1) |
 | 05 | [Pattern 2 Demo — Delegated](05-PATTERN2-DEMO.md) | **Standalone test case**: Application teams deploy independently with own state files | Everyone (main demo #2) |
 | 06 | [Mermaid Diagrams Collection](06-DIAGRAMS.md) | Architecture diagrams, flow diagrams, team responsibility charts | Everyone |
 
@@ -32,7 +32,8 @@ This documentation explains the **Enterprise Terraform Framework for Azure** to 
 
 ### For CI/CD Demo
 
-- **Pattern 1 test case**: Document 04 → `cd infra/envs/dev && terraform validate && terraform plan`
+- **Platform layer test case**: `cd infra/platform/dev && terraform validate && terraform plan`
+- **Pattern 1 app layer test case**: Document 04 → `cd infra/envs/dev && terraform validate && terraform plan`
 - **Pattern 2 test case**: Document 05 → `cd examples/pattern-2-delegated/dev-app-crm && terraform validate`
 
 ---
@@ -43,7 +44,8 @@ This documentation explains the **Enterprise Terraform Framework for Azure** to 
 Framework Structure:
 ├── infra/global/      → Standards everyone follows (naming, tags)
 ├── infra/modules/     → Reusable building blocks (AKS, CosmosDB, etc.)
-├── infra/envs/        → Pattern 1: Centralized environments
+├── infra/platform/    → Platform layer: VNets, Security, Monitoring
+├── infra/envs/        → Application layer: Pattern 1 apps (AKS, CosmosDB...)
 ├── examples/          → Pattern 2: Delegated per-team examples
 ├── pipelines/         → Azure DevOps CI/CD
 ├── scripts/           → Helper scripts

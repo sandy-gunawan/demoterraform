@@ -1,8 +1,11 @@
 # =============================================================================
-# DEVELOPMENT ENVIRONMENT - Keep it simple!
+# DEVELOPMENT ENVIRONMENT - Application Layer (Keep it simple!)
 # =============================================================================
 # Philosophy: Fast iteration, low cost, no complexity
 # Monthly cost estimate: $100-300
+#
+# ⚠️  PREREQUISITE: Deploy platform layer FIRST!
+#    cd infra/platform/dev && terraform apply -var-file="dev.tfvars"
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -30,23 +33,12 @@ enable_aks            = false # Set true if you need Kubernetes
 enable_container_apps = false # Set true for simpler container workloads
 enable_webapp         = false # Set true for web app hosting
 enable_cosmosdb       = false # Set true if you need database
-enable_key_vault      = true  # Always have secrets management
-
-# -----------------------------------------------------------------------------
-# Security Features - ALL DISABLED for dev simplicity
-# -----------------------------------------------------------------------------
-enable_nat_gateway         = false   # Not needed for dev
-enable_private_endpoints   = false   # Public access OK for dev
-enable_ddos_protection     = false   # Too expensive for dev
-key_vault_purge_protection = false   # Allows easy cleanup in dev
-network_acl_default_action = "Allow" # Open access for dev
 
 # -----------------------------------------------------------------------------
 # Monitoring - Minimal for dev
 # -----------------------------------------------------------------------------
 enable_application_insights = false # Optional, adds cost
 enable_diagnostic_settings  = false # Keep it simple
-log_retention_days          = 30    # Minimum retention
 
 # -----------------------------------------------------------------------------
 # Scaling - Fixed small size for dev

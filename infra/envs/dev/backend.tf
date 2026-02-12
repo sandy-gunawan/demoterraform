@@ -1,4 +1,4 @@
-# Terraform Backend Configuration for Development Environment
+# Terraform Backend Configuration for Development Environment (Application Layer)
 #
 # This file configures where Terraform stores its "state" - a record of what
 # resources it has created. We store this in Azure Storage so:
@@ -7,14 +7,16 @@
 # 3. State is locked during operations (prevents conflicts)
 #
 # =============================================================================
-# ⚠️ IMPORTANT: This is the SAME storage account used by ALL teams!
+# ⚠️ IMPORTANT: This is the SAME storage account used by ALL layers and teams!
 # Platform team creates this storage account ONCE (see scripts/init-backend.ps1)
-# Then Pattern 1 and Pattern 2 teams ALL point to it, with different state keys.
 #
-# State files in this storage:
-#   dev.terraform.tfstate     ← Pattern 1 (this file)
-#   dev-app-crm.tfstate       ← Pattern 2 CRM team
-#   dev-app-ecommerce.tfstate ← Pattern 2 E-commerce team
+# State files in this storage (Layered Infrastructure):
+#   Layer 1 - Platform:
+#     platform-dev.tfstate        ← Platform layer (infra/platform/dev/)
+#   Layer 2 - Applications:
+#     dev.terraform.tfstate       ← Pattern 1 apps (THIS file)
+#     dev-app-crm.tfstate         ← Pattern 2 CRM team
+#     dev-app-ecommerce.tfstate   ← Pattern 2 E-commerce team
 # =============================================================================
 #
 # SETUP INSTRUCTIONS (Platform team runs this ONCE):

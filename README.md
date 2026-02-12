@@ -23,10 +23,14 @@ terraform-infrastructure/
 │   │   ├── versions.tf            # Terraform version requirements
 │   │   ├── providers.tf           # Provider configuration (OIDC)
 │   │   └── locals.tf              # Naming and tagging standards
-│   ├── envs/                      # Environment-specific configurations
-│   │   ├── dev/                   # Development environment
-│   │   ├── staging/               # Staging environment
-│   │   └── prod/                  # Production environment
+│   ├── platform/                   # Platform layer (VNets, Security, Monitoring)
+│   │   ├── dev/                   # Platform infra for dev
+│   │   ├── staging/               # Platform infra for staging
+│   │   └── prod/                  # Platform infra for prod
+│   ├── envs/                      # Application layer (AKS, CosmosDB, etc.)
+│   │   ├── dev/                   # Development apps
+│   │   ├── staging/               # Staging apps
+│   │   └── prod/                  # Production apps
 │   └── modules/                   # Reusable Terraform modules
 │       ├── _shared/               # Shared naming conventions
 │       ├── aks/                   # Azure Kubernetes Service
@@ -51,7 +55,7 @@ terraform-infrastructure/
 ├── examples/                      # Working examples
 │   ├── aks-application/          # Complete AKS deployment
 │   ├── enterprise-hub-spoke/     # Enterprise hub-spoke architecture
-│   └── pattern-2-delegated/      # Multi-team delegation
+│   └── pattern-2-delegated/      # Multi-team delegation (Pattern 2)
 └── README.md                      # This file
 ```
 

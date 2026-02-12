@@ -19,17 +19,13 @@ workload     = "ecommerce"
 location     = "indonesiacentral" # Jakarta - Indonesia datacenter region
 
 # ----------------------------------------------------------------------------
-# Tags (for cost tracking and organization)
+# Tags (inherited from global_standards module)
+# 🎓 Tags are now centralized! Just set cost_center and owner_email.
+#    The global_standards module (infra/global/) generates consistent tags.
 # ----------------------------------------------------------------------------
 
-default_tags = {
-  Environment = "dev"
-  ManagedBy   = "Terraform"
-  Team        = "E-commerce Team"
-  TechLead    = "jane.doe@company.com"
-  CostCenter  = "CC-1234"
-  Application = "Product Catalog & Shopping Cart API"
-}
+cost_center = "CC-1234"
+owner_email = "ecommerce-team@contoso.com"
 
 # ----------------------------------------------------------------------------
 # AKS Configuration

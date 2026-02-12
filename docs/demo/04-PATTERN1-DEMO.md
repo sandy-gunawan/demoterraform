@@ -1,31 +1,41 @@
 # Document 04: Pattern 1 Demo — Centralized Deployment
 
-> **Test Case**: Platform team deploys ALL shared infrastructure using a single `main.tf` with feature toggles.
+> **Test Case**: Platform team deploys shared infrastructure (Platform Layer), then application resources (Application Layer) using feature toggles.
 > This is a **standalone test case** — can be run independently for CI/CD pipeline demos.
 
 ---
 
 ## What Is Pattern 1?
 
-**Pattern 1 = One team controls everything.** A central Platform/DevOps team manages a single `main.tf` that deploys all resources for an environment.
+**Pattern 1 = Layered centralized deployment.** A central Platform/DevOps team manages infrastructure in two layers:
+- **Platform Layer** (`infra/platform/`) — VNets, Security, Monitoring
+- **Application Layer** (`infra/envs/`) — AKS, CosmosDB, Container Apps, etc.
 
 ### Analogy: Apartment Building
 
 Think of Pattern 1 like an **apartment building**:
-- The **building manager** (Platform team) controls all shared facilities
-- **Tenants** (app teams) request features: "I need a gym" → manager adds it
+- The **building manager** (Platform team) first builds the roads and utilities (Platform Layer)
+- Then adds the apartments and facilities (Application Layer)
+- **Tenants** (app teams) request features: "I need a gym" → manager toggles it on
 - Only the manager has the keys to the building systems
-- Everything is in **one building** (one state file)
+- Platform and apps have **separate state files** (safer!)
 
 ### Where It Lives
 
 ```
-infra/envs/dev/
-├── backend.tf       ← Where state is stored (shared filing cabinet)
-├── main.tf          ← ONE file controls ALL resources
-├── variables.tf     ← All variable definitions
-├── dev.tfvars       ← All values for dev environment
-└── outputs.tf       ← What gets exported
+infra/platform/dev/              ← LAYER 1: Platform (deploy first)
+├── backend.tf                   ← State: platform-dev.tfstate
+├── main.tf                      ← VNets, Security, Log Analytics
+├── variables.tf                 ← Platform variable definitions
+├── dev.tfvars                   ← Platform values for dev
+└── outputs.tf                   ← Exports VNet IDs, subnet IDs
+
+infra/envs/dev/                  ← LAYER 2: Applications (deploy second)
+├── backend.tf                   ← State: dev.terraform.tfstate
+├── main.tf                      ← AKS, CosmosDB, etc. (reads from platform)
+├── variables.tf                 ← App variable definitions
+├── dev.tfvars                   ← App values for dev
+└── outputs.tf                   ← App outputs
 ```
 
 ### Key Characteristics
@@ -33,7 +43,7 @@ infra/envs/dev/
 | Feature | How It Works |
 |---------|-------------|
 | **Who deploys?** | Platform team only |
-| **State file** | 1 per environment (`dev.terraform.tfstate`) |
+| **State files** | 2 per environment (platform + apps) |
 | **How teams request?** | Teams ask Platform team to toggle features on/off |
 | **Control mechanism** | Feature toggles (boolean `true`/`false`) |
 | **Best for** | Small teams (< 5), starting with Terraform |
@@ -44,8 +54,21 @@ infra/envs/dev/
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              Platform Team (Andi)                │
-│         infra/envs/dev/main.tf                  │
+│          Platform Layer (Andi)                   │
+│     infra/platform/dev/main.tf                  │
+│                                                  │
+│  Creates:                                       │
+│  ├── VNet 10.1.0.0/16 (shared services)         │
+│  ├── VNet 10.2.0.0/16 (CRM — for Pattern 2)    │
+│  ├── VNet 10.3.0.0/16 (E-commerce — Pattern 2) │
+│  ├── Log Analytics, Key Vault                   │
+│  State: platform-dev.tfstate                    │
+└──────────────────┬──────────────────────────────┘
+                   │ (data sources)
+                   ▼
+┌─────────────────────────────────────────────────┐
+│          Application Layer (Andi)               │
+│        infra/envs/dev/main.tf                   │
 │                                                  │
 │  Feature Toggles:                               │
 │  ├── enable_aks = true            → AKS ✅      │
@@ -54,8 +77,7 @@ infra/envs/dev/
 │  ├── enable_postgresql = true     → PostgreSQL  │
 │  └── enable_webapp = false        → (skip) ❌   │
 │                                                  │
-│  ALL created in ONE state file:                  │
-│  dev.terraform.tfstate                          │
+│  State: dev.terraform.tfstate                   │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -102,11 +124,11 @@ az storage container create \
 
 > **Explain to client**: "This storage account is like a shared filing cabinet. Every team's Terraform state is stored here, but in separate files so they don't interfere with each other."
 
-### STEP 2: Deploy Foundation (Networking + Monitoring)
+### STEP 2: Deploy Platform Layer (Networking + Monitoring)
 
 ```powershell
-# Navigate to dev environment
-cd infra/envs/dev
+# Navigate to platform layer
+cd infra/platform/dev
 
 # Initialize Terraform (downloads plugins, connects to state)
 terraform init
@@ -131,7 +153,7 @@ terraform apply -var-file="dev.tfvars"
 **What was created:**
 
 ```
-Azure Resources:
+Azure Resources (Platform Layer):
 ├── Resource Group: contoso-platform-rg-dev
 │   ├── VNet: 10.1.0.0/16 (shared services)
 │   │   ├── aks-subnet (10.1.1.0/24)
@@ -142,11 +164,27 @@ Azure Resources:
 │   │   └── ecom-aks-subnet (10.3.1.0/24)
 │   ├── Log Analytics: platform-logs-dev
 │   └── Key Vault: platformkvdev
+
+State file: platform-dev.tfstate
 ```
 
 > **Key point**: Platform creates ALL 3 VNets — including the ones Pattern 2 teams will use later!
 
-### STEP 3: Enable AKS + CosmosDB (Team Alpha's Request)
+### STEP 3: Deploy Application Layer (AKS + CosmosDB)
+
+Now deploy the application resources. They READ from the platform layer via data sources.
+
+```powershell
+# Navigate to application layer
+cd infra/envs/dev
+
+# Initialize
+terraform init
+
+# Edit dev.tfvars to enable what you need:
+# enable_aks      = true
+# enable_cosmosdb = true
+```
 
 Team Alpha lead (Budi) asks: *"We need AKS and CosmosDB for our microservices."*
 
@@ -163,12 +201,12 @@ terraform plan -var-file="dev.tfvars"
 # Expected: Plan: 2-3 to add
 #   + module.aks[0].azurerm_kubernetes_cluster.aks
 #   + module.cosmosdb[0].azurerm_cosmosdb_account.db
-# (networking already exists — no changes!)
+# (networking is in platform layer — no VNet changes here!)
 
 terraform apply -var-file="dev.tfvars"
 ```
 
-> **Explain**: "One line change deploys an entire AKS cluster with best practices — correct subnet, proper tags, monitoring attached. The developer doesn't need to know Terraform."
+> **Explain**: "One line change deploys an entire AKS cluster with best practices — correct subnet from platform, proper tags, monitoring attached. The developer doesn't need to know Terraform."
 
 ### STEP 4: Enable Container Apps + PostgreSQL (Team Beta's Request)
 
@@ -193,14 +231,18 @@ terraform apply -var-file="dev.tfvars"
 ### Final State After Pattern 1
 
 ```
-State file: dev.terraform.tfstate
+State files:
+  platform-dev.tfstate        ← Platform Layer (VNets, Security, Monitoring)
+  dev.terraform.tfstate       ← Application Layer (AKS, CosmosDB, etc.)
 
 Azure Resources:
-├── contoso-platform-rg-dev
+├── contoso-platform-rg-dev (Platform Layer)
 │   ├── VNet 10.1.0.0/16 (shared services)
 │   ├── VNet 10.2.0.0/16 (CRM VNet — ready for Pattern 2)
 │   ├── VNet 10.3.0.0/16 (E-commerce VNet — ready for Pattern 2)
 │   ├── Log Analytics, Key Vault
+│
+├── contoso-apps-rg-dev (Application Layer)
 │   ├── AKS (Team Alpha)          ← Feature toggle: ON
 │   ├── CosmosDB (Team Alpha)     ← Feature toggle: ON
 │   ├── Container Apps (Team Beta) ← Feature toggle: ON
@@ -216,19 +258,36 @@ Use these commands in Azure DevOps pipeline to validate Pattern 1:
 ```yaml
 # Pipeline: ci-terraform-plan.yml
 steps:
-  - name: Pattern 1 - Validate
+  - name: Platform Layer - Validate
+    run: |
+      cd infra/platform/dev
+      terraform init -backend=false
+      terraform validate
+
+  - name: Platform Layer - Plan
+    run: |
+      cd infra/platform/dev
+      terraform init
+      terraform plan -var-file="dev.tfvars" -out=tfplan
+
+  - name: Platform Layer - Apply (CD only)
+    run: |
+      cd infra/platform/dev
+      terraform apply tfplan
+
+  - name: App Layer - Validate
     run: |
       cd infra/envs/dev
       terraform init -backend=false
       terraform validate
 
-  - name: Pattern 1 - Plan
+  - name: App Layer - Plan
     run: |
       cd infra/envs/dev
       terraform init
       terraform plan -var-file="dev.tfvars" -out=tfplan
 
-  - name: Pattern 1 - Apply (CD only)
+  - name: App Layer - Apply (CD only)
     run: |
       cd infra/envs/dev
       terraform apply tfplan
@@ -238,13 +297,22 @@ steps:
 
 ```powershell
 # scripts/validate-pattern1.ps1
-cd infra/envs/dev
+
+# Validate Platform Layer
+Write-Host "Validating: Platform Layer" -ForegroundColor Cyan
+cd infra/platform/dev
 terraform init -backend=false
 terraform validate
 if ($LASTEXITCODE -ne 0) { exit 1 }
-terraform fmt -check
+
+# Validate Application Layer
+Write-Host "Validating: Application Layer" -ForegroundColor Cyan
+cd ../../envs/dev
+terraform init -backend=false
+terraform validate
 if ($LASTEXITCODE -ne 0) { exit 1 }
-Write-Host "Pattern 1: All checks passed!"
+
+Write-Host "Pattern 1: All checks passed!" -ForegroundColor Green
 ```
 
 ---
@@ -252,10 +320,10 @@ Write-Host "Pattern 1: All checks passed!"
 ## Pattern 1 Advantages & Disadvantages
 
 ### Advantages
-1. **Single source of truth** — Everything in one place
+1. **Single source of truth** — Everything in one place per layer
 2. **Strong consistency** — Same naming, tags, settings everywhere
-3. **Simple to understand** — One folder, one state file
-4. **Easy to debug** — All resources visible in one plan
+3. **Simple to understand** — Two layers, clear separation
+4. **Safer** — Platform and apps in separate state files (smaller blast radius)
 5. **Clear ownership** — Platform team responsible for everything
 
 ### Disadvantages
@@ -271,12 +339,12 @@ Write-Host "Pattern 1: All checks passed!"
 
 | Time | Show | Say |
 |------|------|-----|
-| 0-5 min | Folder structure | "One folder controls the entire dev environment" |
+| 0-5 min | Folder structure | "Two layers: platform creates VNets, apps create services" |
 | 5-10 min | `dev.tfvars` feature toggles | "Boolean switches control what gets deployed" |
 | 10-15 min | `terraform plan` output | "Preview exactly what changes before applying" |
 | 15-20 min | Azure Portal resources | "Everything consistently named and tagged" |
 
-> **Key takeaway**: "Pattern 1 is perfect for getting started — one team, one file, complete control. When your organization grows, you can evolve to Pattern 2."
+> **Key takeaway**: "Pattern 1 is perfect for getting started — one team, layered infrastructure, complete control. When your organization grows, you can evolve to Pattern 2."
 
 ---
 

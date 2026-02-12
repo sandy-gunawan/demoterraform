@@ -16,7 +16,7 @@ graph TB
             GL --> |"Provider Docs"| PR[providers.tf]
         end
 
-        subgraph "Layer 1: Reusable Modules"
+        subgraph "Layer 0.5: Reusable Modules"
             MOD[infra/modules/]
             MOD --> AKS[aks/]
             MOD --> CDB[cosmosdb/]
@@ -29,29 +29,37 @@ graph TB
             MOD --> ST[storage/]
         end
 
-        subgraph "Layer 2: Pattern 1 - Centralized"
-            ENV[infra/envs/]
+        subgraph "Layer 1: Platform Infrastructure"
+            PLT[infra/platform/]
+            PLT --> PDEV[dev/main.tf]
+            PLT --> PSTG[staging/main.tf]
+            PLT --> PPRD[prod/main.tf]
+        end
+
+        subgraph "Layer 2: Applications"
+            ENV[infra/envs/ - Pattern 1]
             ENV --> DEV[dev/main.tf]
             ENV --> STG[staging/main.tf]
             ENV --> PRD[prod/main.tf]
-        end
 
-        subgraph "Layer 3: Pattern 2 - Delegated"
             P2[examples/pattern-2-delegated/]
             P2 --> CRM[dev-app-crm/]
             P2 --> ECM[dev-app-ecommerce/]
         end
     end
 
+    GL -.->|"Standards applied to"| PDEV
     GL -.->|"Standards applied to"| DEV
-    GL -.->|"Standards applied to"| STG
-    GL -.->|"Standards applied to"| PRD
+    GL -.->|"Standards applied to"| CRM
+    MOD -.->|"Modules used by"| PDEV
     MOD -.->|"Modules used by"| DEV
-    MOD -.->|"Modules used by"| CRM
-    MOD -.->|"Modules used by"| ECM
+    PLT -.->|"data sources"| DEV
+    PLT -.->|"data sources"| CRM
+    PLT -.->|"data sources"| ECM
 
     style GL fill:#4CAF50,color:#fff
     style MOD fill:#2196F3,color:#fff
+    style PLT fill:#FF5722,color:#fff
     style ENV fill:#FF9800,color:#fff
     style P2 fill:#9C27B0,color:#fff
 ```
@@ -121,20 +129,20 @@ sequenceDiagram
     participant Eka as 👨‍💻 Eka<br/>(Team Delta/E-com)
     participant Azure as ☁️ Azure
 
-    Note over Andi,Azure: ACT 1: Foundation Setup
+    Note over Andi,Azure: ACT 1: Platform Layer Setup
     Andi->>Azure: Create state storage (az CLI)
-    Andi->>Andi: Edit dev.tfvars (foundation only)
+    Andi->>Andi: Edit platform/dev/dev.tfvars
     Andi->>Azure: terraform apply → VNet, Subnets, Logs, KeyVault
-    Azure-->>Andi: ✅ Foundation ready
+    Azure-->>Andi: ✅ Platform layer ready (platform-dev.tfstate)
 
-    Note over Budi,Azure: ACT 2A: Team Alpha Request (Pattern 1)
+    Note over Budi,Azure: ACT 2A: Team Alpha Request (App Layer)
     Budi->>Andi: "We need AKS + CosmosDB"
-    Andi->>Andi: Set enable_aks=true, enable_cosmosdb=true
-    Andi->>Azure: terraform apply
+    Andi->>Andi: Set enable_aks=true, enable_cosmosdb=true in envs/dev/
+    Andi->>Azure: terraform apply (reads VNets from platform via data sources)
     Azure-->>Andi: ✅ AKS + CosmosDB created
     Andi-->>Budi: "Your AKS cluster is ready!"
 
-    Note over Citra,Azure: ACT 2B: Team Beta Request (Pattern 1)
+    Note over Citra,Azure: ACT 2B: Team Beta Request (App Layer)
     Citra->>Andi: "We need ContainerApps + PostgreSQL"
     Andi->>Andi: Set enable_container_apps=true, enable_postgresql=true
     Andi->>Azure: terraform apply
@@ -162,25 +170,27 @@ sequenceDiagram
 
 ```mermaid
 graph TB
-    subgraph "Pattern 1: Centralized"
-        P1_TFVARS[dev.tfvars<br/>enable_aks=true<br/>enable_cosmosdb=true<br/>enable_container_apps=true]
-        P1_MAIN[main.tf<br/>ONE file controls ALL]
-        P1_STATE[(dev.terraform.tfstate<br/>ONE state file)]
+    subgraph "Pattern 1: Centralized (Layered)"
+        P1_PLT[Platform Layer<br/>infra/platform/dev/<br/>VNets, Security, Monitoring]
+        P1_STATE_P[(platform-dev.tfstate)]
+
+        P1_TFVARS[dev.tfvars<br/>enable_aks=true<br/>enable_cosmosdb=true]
+        P1_MAIN[App Layer main.tf<br/>reads from platform]
+        P1_STATE[(dev.terraform.tfstate)]
 
         P1_AKS[AKS Module]
         P1_CDB[CosmosDB Module]
-        P1_CAP[ContainerApp Module]
 
+        P1_PLT --> P1_STATE_P
+        P1_PLT -.->|"data sources"| P1_MAIN
         P1_TFVARS --> P1_MAIN
         P1_MAIN --> P1_AKS
         P1_MAIN --> P1_CDB
-        P1_MAIN --> P1_CAP
         P1_MAIN --> P1_STATE
     end
 
     subgraph "Pattern 2: Delegated"
-        P2_SHARED[Shared Infra<br/>VNet, Subnets]
-        P2_STATE_S[(shared.tfstate)]
+        P2_PLT[Platform Layer<br/>Same platform-dev.tfstate]
 
         P2_CRM_MAIN[CRM main.tf]
         P2_CRM_STATE[(crm.tfstate)]
@@ -188,15 +198,14 @@ graph TB
         P2_ECM_MAIN[E-com main.tf]
         P2_ECM_STATE[(ecom.tfstate)]
 
-        P2_SHARED --> P2_STATE_S
-        P2_SHARED -.->|"data source"| P2_CRM_MAIN
-        P2_SHARED -.->|"data source"| P2_ECM_MAIN
+        P2_PLT -.->|"data source"| P2_CRM_MAIN
+        P2_PLT -.->|"data source"| P2_ECM_MAIN
         P2_CRM_MAIN --> P2_CRM_STATE
         P2_ECM_MAIN --> P2_ECM_STATE
     end
 
+    style P1_STATE_P fill:#FFCDD2
     style P1_STATE fill:#FFF9C4
-    style P2_STATE_S fill:#FFF9C4
     style P2_CRM_STATE fill:#C8E6C9
     style P2_ECM_STATE fill:#BBDEFB
 ```
@@ -244,11 +253,17 @@ graph TD
 
 ---
 
-## Diagram 6: File Interaction in Pattern 1 (infra/envs/dev/)
+## Diagram 6: File Interaction in Pattern 1 (Layered Architecture)
 
 ```mermaid
 graph LR
-    subgraph "infra/envs/dev/"
+    subgraph "infra/platform/dev/ (Layer 1)"
+        PLT_MA[main.tf<br/>VNets, Security]
+        PLT_STATE[(platform-dev.tfstate)]
+        PLT_MA --> PLT_STATE
+    end
+
+    subgraph "infra/envs/dev/ (Layer 2)"
         BE[backend.tf<br/>State: Azure Storage]
         TV[dev.tfvars<br/>Values: org, project,<br/>toggles]
         VA[variables.tf<br/>Declarations]
@@ -262,7 +277,6 @@ graph LR
     end
 
     subgraph "infra/modules/"
-        MN[networking/<br/>VNet, Subnets]
         MA_AKS[aks/<br/>Kubernetes]
         MC[cosmosdb/<br/>CosmosDB]
         MCA[container-app/<br/>ContainerApps]
@@ -273,16 +287,14 @@ graph LR
     VA -->|"variables"| MA
     MA -->|"source=../../global"| GL
     GL --> GO
-    GO -->|"common_tags<br/>resource_names"| MA
+    GO -->|"common_tags"| MA
     
-    MA -->|"source=../../modules/networking"| MN
+    PLT_MA -.->|"data sources<br/>VNet, Subnets, Logs"| MA
+    
     MA -->|"source=../../modules/aks"| MA_AKS
     MA -->|"source=../../modules/cosmosdb"| MC
     MA -->|"source=../../modules/container-app"| MCA
     MA -->|"source=../../modules/postgresql"| MP
-
-    MN -->|"subnet_ids"| MA_AKS
-    MN -->|"subnet_ids"| MCA
 
     MA --> OU
     MA --> BE
@@ -293,6 +305,7 @@ graph LR
     style MA fill:#FFF3E0
     style OU fill:#FBE9E7
     style GL fill:#F3E5F5
+    style PLT_MA fill:#FFCDD2
 ```
 
 ---
@@ -362,31 +375,38 @@ graph TB
 graph TB
     subgraph "Azure Storage Account: stcontosotfstate001"
         subgraph "Container: tfstate"
-            S1[dev.terraform.tfstate<br/>Platform + Team Alpha + Team Beta<br/>Pattern 1]
+            S0[platform-dev.tfstate<br/>Platform Layer: VNets, Security<br/>Monitoring]
+            S1[dev.terraform.tfstate<br/>App Layer Pattern 1<br/>AKS, CosmosDB, etc.]
             S2[dev-app-crm.tfstate<br/>CRM Team Only<br/>Pattern 2]
             S3[dev-app-ecommerce.tfstate<br/>E-commerce Team Only<br/>Pattern 2]
-            S4[staging.terraform.tfstate<br/>Staging Environment]
-            S5[prod.terraform.tfstate<br/>Production Environment]
+            S4[platform-staging.tfstate<br/>Staging Platform]
+            S5[staging.terraform.tfstate<br/>Staging Apps]
+            S6[platform-prod.tfstate<br/>Prod Platform]
+            S7[prod.terraform.tfstate<br/>Prod Apps]
         end
     end
 
     subgraph "What Each State Controls"
-        S1 --> P1[VNet, Subnets, AKS,<br/>CosmosDB, ContainerApps,<br/>PostgreSQL, Log Analytics]
+        S0 --> P0[VNets, Subnets, NSGs,<br/>Log Analytics, Key Vault]
+        S1 --> P1[AKS, CosmosDB,<br/>ContainerApps, PostgreSQL]
         S2 --> P2[CRM App Service,<br/>CRM CosmosDB,<br/>CRM Key Vault]
         S3 --> P3[E-com AKS,<br/>E-com CosmosDB,<br/>E-com Key Vault]
     end
 
     subgraph "Isolation Benefit"
-        ISO1[CRM destroy ≠ E-com affected ✅]
-        ISO2[E-com change ≠ Platform affected ✅]
+        ISO1[Platform change ≠ App affected ✅]
+        ISO2[CRM destroy ≠ E-com affected ✅]
         ISO3[Dev destroy ≠ Prod affected ✅]
     end
 
+    style S0 fill:#FFCDD2
     style S1 fill:#FFF9C4
     style S2 fill:#C8E6C9
     style S3 fill:#BBDEFB
     style S4 fill:#FFE0B2
-    style S5 fill:#FFCDD2
+    style S5 fill:#FFE0B2
+    style S6 fill:#E1BEE7
+    style S7 fill:#E1BEE7
 ```
 
 ---
@@ -400,13 +420,16 @@ graph TB
             SA[Storage Account<br/>stcontosotfstate001]
         end
 
-        subgraph "contoso-platform-rg-dev (Pattern 1)"
+        subgraph "contoso-platform-rg-dev (Platform Layer)"
             P1_VNET[VNet: vnet-contoso-dev-001<br/>10.1.0.0/16]
             P1_AKS_SUB[Subnet: aks-subnet<br/>10.1.1.0/24]
             P1_APP_SUB[Subnet: app-subnet<br/>10.1.2.0/24]
             P1_NSG[NSG: aks-nsg]
             P1_LOG[Log Analytics:<br/>contoso-logs-dev]
             P1_KV[Key Vault:<br/>platformkvdev]
+        end
+
+        subgraph "contoso-apps-rg-dev (App Layer - Pattern 1)"
             P1_AKS[AKS: platform-aks-dev<br/>1x Standard_D8ds_v5]
             P1_CDB[CosmosDB:<br/>platformcosmosdev]
             P1_CAE[Container App Env:<br/>platform-cae-dev]

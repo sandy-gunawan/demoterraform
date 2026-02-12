@@ -1,22 +1,20 @@
-# Development Environment Configuration
+# Application Layer - Development Environment (Pattern 1)
 # =============================================================================
-# ⚠️ IMPORTANT FOR NEWBIES: This file creates infrastructure for BOTH patterns!
+# 🎓 WHAT IS THE APPLICATION LAYER?
+#    This is where Pattern 1 app teams deploy their applications.
+#    Platform layer (infra/platform/dev/) creates VNets, Security, Monitoring.
+#    This layer creates: AKS, CosmosDB, Container Apps, WebApp.
 #
-# What this file does:
-# 1. Pattern 1 Resources: Shared AKS, CosmosDB, Log Analytics, etc.
-# 2. Pattern 1 VNet: 10.1.0.0/16 (for shared services above)
-# 3. Pattern 2 VNets: 10.2.x (CRM) and 10.3.x (E-commerce) <- YES, Platform creates these!
+# 🎓 LAYERED INFRASTRUCTURE:
+#    Layer 1: infra/platform/dev/   → VNets, Security, Log Analytics (DEPLOY FIRST!)
+#    Layer 2: infra/envs/dev/       → THIS FILE: Applications only
 #
-# Why Platform creates Pattern 2 VNets?
-# - Governance: Platform enforces networking standards (security, naming, IP ranges)
-# - Reusability: Same networking module used 3 times (don't reinvent the wheel)
-# - Consistency: All VNets follow same patterns
-# - Control: Platform team manages all networking, teams focus on apps
+# 🎓 DEPLOY ORDER:
+#    Step 1: cd infra/platform/dev && terraform apply -var-file="dev.tfvars"
+#    Step 2: cd infra/envs/dev && terraform apply -var-file="dev.tfvars"
 #
-# Pattern 2 teams DON'T create VNets themselves!
-# They READ these VNets using Terraform data sources (see examples/pattern-2-delegated/)
-#
-# Deploy this FIRST before Pattern 2 teams can deploy their apps!
+# 🎓 WHY SEPARATE? If AKS deploy fails, VNets are safe (different state file).
+#    Platform team manages networking, app teams manage their apps.
 # =============================================================================
 # PHILOSOPHY: Simple, cheap, fast iteration
 # - Minimal resources, no expensive security features
@@ -69,19 +67,18 @@ provider "azurerm" {
 provider "azuread" {}
 
 # =============================================================================
-# RESOURCE GROUP - Always created (the "folder" for all Platform resources)
+# RESOURCE GROUP - Application layer's own resource group
 # =============================================================================
 # 🎓 WHAT IS A RESOURCE GROUP?
 #    A logical container for Azure resources (like a folder on your computer).
 #    Every Azure resource MUST belong to a resource group.
 #
-# 🎓 WHO CREATES THIS? Platform team (Pattern 1) creates this ONCE.
-# 🎓 WHO USES THIS? All shared resources below (VNets, AKS, CosmosDB, etc.)
-# 🎓 NAMING: "contoso-platform-rg-dev" → {company}-platform-rg-{environment}
-#    Pattern 2 teams have their OWN resource groups (see examples/pattern-2-delegated/)
+# 🎓 WHO CREATES THIS? App team (Pattern 1) creates this for their apps.
+#    Platform team has: "contoso-platform-rg-dev" (in infra/platform/dev/)
+#    App team has:      "contoso-apps-rg-dev" (THIS)
 # =============================================================================
 resource "azurerm_resource_group" "main" {
-  name     = "contoso-platform-rg-${var.environment}"
+  name     = "contoso-apps-rg-${var.environment}"
   location = var.location
   tags     = module.global_standards.common_tags
 }
@@ -112,231 +109,40 @@ module "global_standards" {
 }
 
 # =============================================================================
-# NETWORKING - Always created (foundation for everything else)
+# DATA SOURCES - Read Platform layer's infrastructure
 # =============================================================================
-# 🎓 WHAT IS A VNET? A Virtual Network = your private network in Azure.
-#    Like building walls around your neighborhood — only your resources
-#    can talk to each other inside the VNet.
+# 🎓 NEWBIE NOTE: We DON'T create VNets or Log Analytics here anymore!
+#    The Platform team created them in infra/platform/dev/main.tf.
+#    We READ them using data sources (read-only, no modification).
 #
-# 🎓 IP ADDRESS PLAN (3 VNets, non-overlapping ranges):
-#    ┌─────────────────┬─────────────────┬─────────────────────────────────┐
-#    │ VNet             │ Address Range   │ WHO uses it?                    │
-#    ├─────────────────┼─────────────────┼─────────────────────────────────┤
-#    │ Platform (this)  │ 10.1.0.0/16     │ Shared AKS, CosmosDB, Key Vault │
-#    │ CRM Team         │ 10.2.0.0/16     │ CRM App Service, CRM CosmosDB   │
-#    │ E-commerce Team  │ 10.3.0.0/16     │ E-com AKS, E-com CosmosDB       │
-#    └─────────────────┴─────────────────┴─────────────────────────────────┘
-#
-# 🎓 WHY NON-OVERLAPPING?
-#    If you ever need VNet peering (connecting VNets together), IP ranges
-#    MUST NOT overlap. Planning this upfront saves headaches later!
-#
-# 🎓 MODULE SOURCE: infra/modules/networking/ (reusable VNet + Subnet + NSG module)
-#    We use the SAME module 3 times — once per VNet. That's reusability!
+# ⚠️  PREREQUISITE: Platform layer MUST be deployed FIRST!
+#    Run: cd infra/platform/dev && terraform apply -var-file="dev.tfvars"
 # =============================================================================
-module "networking" {
-  source = "../../modules/networking"
 
-  resource_group_name = azurerm_resource_group.main.name
-  network_name        = "vnet-${var.project_name}-${var.environment}-001"
-  location            = var.location
-  address_space       = ["10.1.0.0/16"] # Platform team's address space
-
-  # 🎓 SUBNETS: Smaller networks INSIDE the VNet (like rooms inside a house).
-  # Each subnet isolates a group of resources and can have its own firewall rules (NSGs).
-  subnets = {
-    "aks-subnet" = {
-      address_prefixes = ["10.1.1.0/24"] # 254 usable IPs, enough for AKS nodes
-      # WHY service_endpoints? Allows DIRECT connection to Azure services
-      # without going through the public internet (faster + more secure)
-      service_endpoints = ["Microsoft.Sql", "Microsoft.Storage", "Microsoft.KeyVault"]
-    }
-    "app-subnet" = {
-      address_prefixes  = ["10.1.2.0/24"] # 254 usable IPs for Container Apps
-      service_endpoints = ["Microsoft.Sql", "Microsoft.Storage"]
-    }
-  }
-
-  # 🎓 NSG (Network Security Group): Firewall rules for the subnet.
-  # Think of it as a bouncer at the door — decides WHO can enter and leave.
-  network_security_groups = {
-    "aks-nsg" = {
-      security_rules = {
-        "allow-https" = {
-          priority                   = 100 # Lower number = higher priority (processed first)
-          direction                  = "Inbound"
-          access                     = "Allow"
-          protocol                   = "Tcp"
-          source_port_range          = "*"
-          destination_port_range     = "443"
-          source_address_prefix      = "*"
-          destination_address_prefix = "*"
-        }
-      }
-    }
-  }
-
-  subnet_nsg_associations = {
-    "aks-subnet" = "aks-nsg"
-  }
-
-  # 🎓 FEATURE TOGGLE: var.enable_nat_gateway → Dev: false (save cost), Prod: true
-  # NAT Gateway gives all outbound traffic a fixed public IP (useful for whitelisting)
-  create_nat_gateway = var.enable_nat_gateway
-
-  tags = module.global_standards.common_tags
+# Read Platform's shared VNet (10.1.0.0/16)
+data "azurerm_virtual_network" "platform" {
+  name                = "vnet-${var.project_name}-${var.environment}-001"
+  resource_group_name = "contoso-platform-rg-${var.environment}"
 }
 
-# =============================================================================
-# PATTERN 2 NETWORKING - VNets for Delegated Teams
-# =============================================================================
-# Platform team creates SEPARATE VNets for Pattern 2 teams.
-# This shows framework's governance while providing isolation:
-# - Platform controls: IP ranges, security rules, naming standards
-# - Teams get: Isolated networks, focus on apps not infrastructure
-# - Framework value: Reusable, consistent, governed
-#
-# Pattern 2 teams use DATA SOURCES to read these VNets (see examples/).
-# =============================================================================
-
-# CRM Team's Dedicated VNet (10.2.0.0/16)
-module "networking_crm" {
-  source = "../../modules/networking"
-
-  resource_group_name = azurerm_resource_group.main.name
-  network_name        = "vnet-${var.project_name}-${var.environment}-crm-001"
-  location            = var.location
-  address_space       = ["10.2.0.0/16"]
-
-  subnets = {
-    "crm-app-subnet" = {
-      address_prefixes  = ["10.2.1.0/24"]
-      service_endpoints = ["Microsoft.Web", "Microsoft.AzureCosmosDB", "Microsoft.KeyVault"]
-    }
-    "crm-db-subnet" = {
-      address_prefixes  = ["10.2.2.0/24"]
-      service_endpoints = ["Microsoft.AzureCosmosDB"]
-    }
-  }
-
-  network_security_groups = {
-    "crm-app-nsg" = {
-      security_rules = {
-        "allow-https" = {
-          priority                   = 100
-          direction                  = "Inbound"
-          access                     = "Allow"
-          protocol                   = "Tcp"
-          source_port_range          = "*"
-          destination_port_range     = "443"
-          source_address_prefix      = "*"
-          destination_address_prefix = "*"
-        }
-        "allow-http" = {
-          priority                   = 110
-          direction                  = "Inbound"
-          access                     = "Allow"
-          protocol                   = "Tcp"
-          source_port_range          = "*"
-          destination_port_range     = "80"
-          source_address_prefix      = "*"
-          destination_address_prefix = "*"
-        }
-      }
-    }
-  }
-
-  subnet_nsg_associations = {
-    "crm-app-subnet" = "crm-app-nsg"
-  }
-
-  tags = merge(module.global_standards.common_tags, {
-    Team    = "CRM"
-    Pattern = "Pattern2"
-  })
+# Read Platform's AKS subnet (for AKS module below)
+data "azurerm_subnet" "aks" {
+  name                 = "aks-subnet"
+  virtual_network_name = data.azurerm_virtual_network.platform.name
+  resource_group_name  = data.azurerm_virtual_network.platform.resource_group_name
 }
 
-# E-commerce Team's Dedicated VNet (10.3.0.0/16)
-module "networking_ecommerce" {
-  source = "../../modules/networking"
-
-  resource_group_name = azurerm_resource_group.main.name
-  network_name        = "vnet-${var.project_name}-${var.environment}-ecommerce-001"
-  location            = var.location
-  address_space       = ["10.3.0.0/16"]
-
-  subnets = {
-    "ecom-aks-subnet" = {
-      address_prefixes  = ["10.3.1.0/24"]
-      service_endpoints = ["Microsoft.ContainerRegistry", "Microsoft.AzureCosmosDB"]
-    }
-    "ecom-db-subnet" = {
-      address_prefixes  = ["10.3.2.0/24"]
-      service_endpoints = ["Microsoft.AzureCosmosDB"]
-    }
-  }
-
-  network_security_groups = {
-    "ecom-aks-nsg" = {
-      security_rules = {
-        "allow-https" = {
-          priority                   = 100
-          direction                  = "Inbound"
-          access                     = "Allow"
-          protocol                   = "Tcp"
-          source_port_range          = "*"
-          destination_port_range     = "443"
-          source_address_prefix      = "*"
-          destination_address_prefix = "*"
-        }
-        "allow-http" = {
-          priority                   = 110
-          direction                  = "Inbound"
-          access                     = "Allow"
-          protocol                   = "Tcp"
-          source_port_range          = "*"
-          destination_port_range     = "80"
-          source_address_prefix      = "*"
-          destination_address_prefix = "*"
-        }
-      }
-    }
-  }
-
-  subnet_nsg_associations = {
-    "ecom-aks-subnet" = "ecom-aks-nsg"
-  }
-
-  tags = merge(module.global_standards.common_tags, {
-    Team    = "E-commerce"
-    Pattern = "Pattern2"
-  })
+# Read Platform's app subnet (for Container Apps module below)
+data "azurerm_subnet" "app" {
+  name                 = "app-subnet"
+  virtual_network_name = data.azurerm_virtual_network.platform.name
+  resource_group_name  = data.azurerm_virtual_network.platform.resource_group_name
 }
 
-# =============================================================================
-# LOG ANALYTICS - Always created (monitoring hub for all resources)
-# =============================================================================
-# 🎓 WHAT IS LOG ANALYTICS? Azure's central logging service.
-#    All resources can send their logs here — like a shared diary.
-#
-# 🎓 WHY ALWAYS CREATED (no feature toggle)?
-#    You ALWAYS need to see what's happening, even in dev.
-#    Without logs, troubleshooting is just guessing!
-#
-# 🎓 WHO SENDS LOGS HERE?
-#    - AKS (cluster events, container logs)
-#    - Application Insights (app performance, request tracing)
-#    - Key Vault (who accessed what secrets, audit trail)
-#    - Container Apps (app logs + scaling events)
-# =============================================================================
-resource "azurerm_log_analytics_workspace" "main" {
+# Read Platform's Log Analytics workspace (for monitoring)
+data "azurerm_log_analytics_workspace" "platform" {
   name                = "${var.project_name}-logs-${var.environment}"
-  location            = var.location
-  resource_group_name = azurerm_resource_group.main.name
-  sku                 = "PerGB2018"
-  retention_in_days   = var.log_retention_days
-
-  tags = module.global_standards.common_tags
+  resource_group_name = "contoso-platform-rg-${var.environment}"
 }
 
 # =============================================================================
@@ -358,43 +164,8 @@ resource "azurerm_application_insights" "main" {
   name                = "${var.project_name}-insights-dev"
   location            = var.location
   resource_group_name = azurerm_resource_group.main.name
-  workspace_id        = azurerm_log_analytics_workspace.main.id
+  workspace_id        = data.azurerm_log_analytics_workspace.platform.id
   application_type    = "web"
-
-  tags = module.global_standards.common_tags
-}
-
-# =============================================================================
-# KEY VAULT - Recommended for all environments (secrets management)
-# =============================================================================
-# 🎓 WHAT IS KEY VAULT? Secure storage for secrets, keys, and certificates.
-#    Like a safe deposit box — only authorized identities can open it.
-#
-# 🎓 WHY ALWAYS ENABLED (default=true)?
-#    Every environment needs a secure place for secrets:
-#    - Database connection strings, API keys, certificates
-#    - Never store secrets in code or environment variables!
-#
-# 🎓 PROGRESSIVE SECURITY across environments:
-#    Dev:     no purge protection, open network (easy to delete & recreate)
-#    Staging: purge protection ON, deny network (test prod-like security)
-#    Prod:    purge protection ON, deny network, private endpoint only
-#
-# 🎓 MODULE SOURCE: infra/modules/security/ (creates Key Vault + optional Private Endpoint)
-# =============================================================================
-module "security" {
-  count  = var.enable_key_vault ? 1 : 0
-  source = "../../modules/security"
-
-  resource_group_name = azurerm_resource_group.main.name
-  # 🎓 KEY VAULT NAMING: Must be globally unique, 3-24 chars, alphanumeric + hyphens only
-  key_vault_name = "${var.project_name}kvdev"
-  location       = var.location
-  tenant_id      = var.tenant_id
-
-  # Feature toggles
-  purge_protection_enabled    = var.key_vault_purge_protection
-  network_acls_default_action = var.network_acl_default_action
 
   tags = module.global_standards.common_tags
 }
@@ -406,8 +177,8 @@ module "security" {
 #    Runs containerized applications (Docker) at scale.
 #
 # 🎓 HOW IT CONNECTS:
-#    1. Lives in the "aks-subnet" (10.1.1.0/24) we created above
-#    2. Sends logs to Log Analytics workspace (also created above)
+#    1. Lives in the "aks-subnet" (10.1.1.0/24) created by Platform layer
+#    2. Sends logs to Log Analytics workspace (also from Platform layer)
 #    3. count toggle: enable_aks = false → not created (saves ~$100/month)
 #
 # 🎓 DEV vs PROD differences (controlled by variables):
@@ -425,16 +196,16 @@ module "aks" {
   location            = var.location
   dns_prefix          = "${var.project_name}-dev" # Used for AKS FQDN: {prefix}.hcp.indonesiacentral.azmk8s.io
 
-  # Networking — connects AKS to the "aks-subnet" from module "networking" above
-  vnet_subnet_id = module.networking.subnet_ids["aks-subnet"]
+  # Networking — reads from Platform layer's subnet (via data source)
+  vnet_subnet_id = data.azurerm_subnet.aks.id
 
   # Scaling — Dev uses fixed small size (no auto-scaling to save cost)
   node_count          = var.aks_node_count      # 1 node for dev (see dev.tfvars)
   vm_size             = var.aks_node_size       # Standard_D2s_v3 (2 vCPU, 8GB)
   enable_auto_scaling = var.enable_auto_scaling # false for dev, true for prod
 
-  # Monitoring — AKS sends container logs + metrics to Log Analytics
-  log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
+  # Monitoring — reads from Platform layer's Log Analytics (via data source)
+  log_analytics_workspace_id = data.azurerm_log_analytics_workspace.platform.id
 
   tags = module.global_standards.common_tags
 }
@@ -460,11 +231,11 @@ module "container_apps" {
   environment_name    = "${var.project_name}-cae-dev"
   location            = var.location
 
-  # Networking — connects to "app-subnet" (10.1.2.0/24) for VNet integration
-  infrastructure_subnet_id = module.networking.subnet_ids["app-subnet"]
+  # Networking — reads from Platform layer's app-subnet (via data source)
+  infrastructure_subnet_id = data.azurerm_subnet.app.id
 
-  # Monitoring — sends container logs + scaling events to Log Analytics
-  log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
+  # Monitoring — reads from Platform layer's Log Analytics (via data source)
+  log_analytics_workspace_id = data.azurerm_log_analytics_workspace.platform.id
 
   tags = module.global_standards.common_tags
 }

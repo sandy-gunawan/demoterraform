@@ -49,7 +49,8 @@ Think of this framework as a **"Terraform Starter Kit"** for your entire organiz
 |---------|---------------|---------------------|
 | **Global Standards** | Building codes (all houses must follow) | `infra/global/` - naming, tagging rules |
 | **Modules** | Pre-built components (door, window, wall) | `infra/modules/` - AKS, CosmosDB, etc. |
-| **Environments** | Different houses (small cottage, big mansion) | `infra/envs/` - dev, staging, prod |
+| **Platform Layer** | Roads, electricity, water pipes (shared) | `infra/platform/` - VNets, Security, Monitoring |
+| **Applications** | Houses built on the plots | `infra/envs/` - AKS, CosmosDB, apps |
 | **Pipelines** | Construction inspectors | `pipelines/` - CI/CD with checks |
 | **Scripts** | Construction tools | `scripts/` - helper utilities |
 
@@ -81,12 +82,17 @@ terraform-infrastructure/
 │   │   ├── webapp/                ← App Service module
 │   │   └── landing-zone/          ← Foundation (VNet + Logs + NSGs)
 │   │
-│   └── envs/                       ← PATTERN 1: Centralized Environments
-│       ├── dev/                    ← Development (cheap, simple)
-│       ├── staging/                ← Staging (production-like)
-│       └── prod/                   ← Production (full security)
+│   ├── platform/                   ← LAYER 1: Platform (VNets, Security, Monitoring)
+│   │   ├── dev/                   ← Platform infra for dev
+│   │   ├── staging/               ← Platform infra for staging
+│   │   └── prod/                  ← Platform infra for prod
+│   │
+│   └── envs/                       ← LAYER 2: Application Layer (Pattern 1)
+│       ├── dev/                    ← Development apps (AKS, CosmosDB, etc.)
+│       ├── staging/                ← Staging apps
+│       └── prod/                   ← Production apps
 │
-├── examples/                       ← PATTERN 2: Delegated Per-Team
+├── examples/                       ← LAYER 2: Pattern 2 (Delegated Per-Team)
 │   ├── pattern-2-delegated/
 │   │   ├── dev-app-crm/           ← CRM team's own infrastructure
 │   │   └── dev-app-ecommerce/     ← E-commerce team's own infrastructure

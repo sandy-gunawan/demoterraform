@@ -1,19 +1,23 @@
-# Staging Environment Configuration
+# Application Layer - Staging Environment (Pattern 1)
 # =============================================================================
 # PHILOSOPHY: Test before production
 # - Add monitoring and basic hardening
 # - Still cost-conscious, no expensive features
+#
+# 🎓 LAYERED INFRASTRUCTURE:
+#    Layer 1: infra/platform/staging/ → VNets, Security, Log Analytics (DEPLOY FIRST!)
+#    Layer 2: infra/envs/staging/     → THIS FILE: Applications only
+#
+# 🎓 DEPLOY ORDER:
+#    Step 1: cd infra/platform/staging && terraform apply -var-file="staging.tfvars"
+#    Step 2: cd infra/envs/staging && terraform apply -var-file="staging.tfvars"
 #
 # 🎓 HOW STAGING DIFFERS FROM DEV (progressive security):
 #    ┌────────────────────────────┬───────────┬────────────┐
 #    │ Feature                     │ Dev        │ Staging      │
 #    ├────────────────────────────┼───────────┼────────────┤
 #    │ App Insights (monitoring)    │ OFF        │ ON           │
-#    │ Key Vault purge protection  │ OFF        │ ON           │
-#    │ Network ACLs                │ Allow      │ Deny         │
-#    │ Log retention               │ 30 days    │ 60 days      │
 #    │ AKS nodes                   │ 1          │ 2            │
-#    │ Extra subnet (data)         │ NO         │ YES          │
 #    └────────────────────────────┴───────────┴────────────┘
 # =============================================================================
 
@@ -53,10 +57,10 @@ provider "azurerm" {
 provider "azuread" {}
 
 # =============================================================================
-# RESOURCE GROUP - Always created
+# RESOURCE GROUP - Application layer's own resource group
 # =============================================================================
 resource "azurerm_resource_group" "main" {
-  name     = "${var.project_name}-rg-staging"
+  name     = "${var.project_name}-apps-rg-staging"
   location = var.location
   tags     = module.global_standards.common_tags
 }
@@ -77,104 +81,35 @@ module "global_standards" {
 }
 
 # =============================================================================
-# NETWORKING - Foundation (10.2.0.0/16 range for staging)
+# DATA SOURCES - Read Platform layer's infrastructure
 # =============================================================================
-# 🎓 STAGING DIFFERENCES FROM DEV:
-#    - Different IP range: 10.2.0.0/16 (dev uses 10.1.0.0/16)
-#    - Extra subnet: "data-subnet" for database isolation
-#    - App NSG restricts source to VirtualNetwork only (not open to all like dev)
+# 🎓 NEWBIE NOTE: VNets and Log Analytics are in infra/platform/staging/
+#    We READ them using data sources (read-only, no modification).
+#
+# ⚠️  PREREQUISITE: Platform layer MUST be deployed FIRST!
+#    Run: cd infra/platform/staging && terraform apply -var-file="staging.tfvars"
 # =============================================================================
-module "networking" {
-  source = "../../modules/networking"
 
-  resource_group_name = azurerm_resource_group.main.name
-  network_name        = "${var.project_name}-vnet-staging"
-  location            = var.location
-  address_space       = ["10.2.0.0/16"] # Different IP range for staging
-
-  subnets = {
-    "aks-subnet" = {
-      address_prefixes  = ["10.2.1.0/24"]
-      service_endpoints = ["Microsoft.Sql", "Microsoft.Storage", "Microsoft.KeyVault", "Microsoft.AzureCosmosDB"]
-    }
-    "app-subnet" = {
-      address_prefixes  = ["10.2.2.0/24"]
-      service_endpoints = ["Microsoft.Sql", "Microsoft.Storage", "Microsoft.AzureCosmosDB"]
-    }
-    "data-subnet" = {
-      address_prefixes  = ["10.2.3.0/24"]
-      service_endpoints = ["Microsoft.Sql", "Microsoft.Storage"]
-    }
-  }
-
-  network_security_groups = {
-    "aks-nsg" = {
-      security_rules = {
-        "allow-https" = {
-          priority                   = 100
-          direction                  = "Inbound"
-          access                     = "Allow"
-          protocol                   = "Tcp"
-          source_port_range          = "*"
-          destination_port_range     = "443"
-          source_address_prefix      = "*"
-          destination_address_prefix = "*"
-        }
-        "allow-http" = {
-          priority                   = 110
-          direction                  = "Inbound"
-          access                     = "Allow"
-          protocol                   = "Tcp"
-          source_port_range          = "*"
-          destination_port_range     = "80"
-          source_address_prefix      = "*"
-          destination_address_prefix = "*"
-        }
-      }
-    }
-    "app-nsg" = {
-      security_rules = {
-        "allow-https" = {
-          priority               = 100
-          direction              = "Inbound"
-          access                 = "Allow"
-          protocol               = "Tcp"
-          source_port_range      = "*"
-          destination_port_range = "443"
-          # 🎓 STAGING: Source is "VirtualNetwork" only (dev allows "*" = anyone)
-          # This is the progressive security — tighter rules as we approach production.
-          source_address_prefix      = "VirtualNetwork"
-          destination_address_prefix = "*"
-        }
-      }
-    }
-  }
-
-  subnet_nsg_associations = {
-    "aks-subnet" = "aks-nsg"
-    "app-subnet" = "app-nsg"
-  }
-
-  # Feature toggle: NAT Gateway (disabled for staging)
-  create_nat_gateway = var.enable_nat_gateway
-
-  tags = module.global_standards.common_tags
+data "azurerm_virtual_network" "platform" {
+  name                = "${var.project_name}-vnet-staging"
+  resource_group_name = "${var.project_name}-platform-rg-staging"
 }
 
-# =============================================================================
-# LOG ANALYTICS - Always created (longer retention than dev)
-# =============================================================================
-# 🎓 STAGING: 60 days retention (dev: 30 days, prod: 90 days)
-#    Longer retention = more history for debugging, but costs more storage.
-# =============================================================================
-resource "azurerm_log_analytics_workspace" "main" {
-  name                = "${var.project_name}-logs-staging"
-  location            = var.location
-  resource_group_name = azurerm_resource_group.main.name
-  sku                 = "PerGB2018"
-  retention_in_days   = var.log_retention_days # 60 days for staging
+data "azurerm_subnet" "aks" {
+  name                 = "aks-subnet"
+  virtual_network_name = data.azurerm_virtual_network.platform.name
+  resource_group_name  = data.azurerm_virtual_network.platform.resource_group_name
+}
 
-  tags = module.global_standards.common_tags
+data "azurerm_subnet" "app" {
+  name                 = "app-subnet"
+  virtual_network_name = data.azurerm_virtual_network.platform.name
+  resource_group_name  = data.azurerm_virtual_network.platform.resource_group_name
+}
+
+data "azurerm_log_analytics_workspace" "platform" {
+  name                = "${var.project_name}-logs-staging"
+  resource_group_name = "${var.project_name}-platform-rg-staging"
 }
 
 # =============================================================================
@@ -186,31 +121,8 @@ resource "azurerm_application_insights" "main" {
   name                = "${var.project_name}-insights-staging"
   location            = var.location
   resource_group_name = azurerm_resource_group.main.name
-  workspace_id        = azurerm_log_analytics_workspace.main.id
+  workspace_id        = data.azurerm_log_analytics_workspace.platform.id
   application_type    = "web"
-
-  tags = module.global_standards.common_tags
-}
-
-# =============================================================================
-# KEY VAULT - With purge protection enabled (staging security hardening)
-# =============================================================================
-# 🎓 STAGING DIFFERENCE: purge_protection = true (dev = false)
-#    This means: once a secret is deleted, it stays in "soft delete" for 90 days.
-#    You CANNOT permanently delete it — protects against accidental secret loss.
-# =============================================================================
-module "security" {
-  count  = var.enable_key_vault ? 1 : 0
-  source = "../../modules/security"
-
-  resource_group_name = azurerm_resource_group.main.name
-  key_vault_name      = "${var.project_name}kvstaging" # Alphanumeric + hyphens, 3-24 chars
-  location            = var.location
-  tenant_id           = var.tenant_id
-
-  # Feature toggles - Staging has purge protection
-  purge_protection_enabled    = var.key_vault_purge_protection # true
-  network_acls_default_action = var.network_acl_default_action # Deny
 
   tags = module.global_standards.common_tags
 }
@@ -227,16 +139,16 @@ module "aks" {
   location            = var.location
   dns_prefix          = "${var.project_name}-staging"
 
-  # Networking
-  vnet_subnet_id = module.networking.subnet_ids["aks-subnet"]
+  # Networking — reads from Platform layer's subnet (via data source)
+  vnet_subnet_id = data.azurerm_subnet.aks.id
 
-  # Scaling - Staging uses fixed medium size (no auto-scaling)
-  node_count          = var.aks_node_count      # 2 nodes
-  vm_size             = var.aks_node_size       # Standard_B2ms
-  enable_auto_scaling = var.enable_auto_scaling # false
+  # Scaling - Staging uses fixed medium size
+  node_count          = var.aks_node_count
+  vm_size             = var.aks_node_size
+  enable_auto_scaling = var.enable_auto_scaling
 
-  # Monitoring
-  log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
+  # Monitoring — reads from Platform layer's Log Analytics (via data source)
+  log_analytics_workspace_id = data.azurerm_log_analytics_workspace.platform.id
 
   tags = module.global_standards.common_tags
 }
@@ -252,11 +164,11 @@ module "container_apps" {
   environment_name    = "${var.project_name}-cae-staging"
   location            = var.location
 
-  # Networking
-  infrastructure_subnet_id = module.networking.subnet_ids["app-subnet"]
+  # Networking — reads from Platform layer's app-subnet (via data source)
+  infrastructure_subnet_id = data.azurerm_subnet.app.id
 
-  # Monitoring
-  log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
+  # Monitoring — reads from Platform layer's Log Analytics (via data source)
+  log_analytics_workspace_id = data.azurerm_log_analytics_workspace.platform.id
 
   tags = module.global_standards.common_tags
 }

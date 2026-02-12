@@ -1,23 +1,27 @@
-# Production Environment Configuration
+# Application Layer - Production Environment (Pattern 1)
 # =============================================================================
 # PHILOSOPHY: Maximum security, high availability, compliance-ready
-# - All security features enabled
+# - All app-level features enabled
 # - Auto-scaling, geo-redundancy, continuous backup
 #
-# 🎓 HOW PROD DIFFERS FROM DEV AND STAGING (full security):
+# 🎓 LAYERED INFRASTRUCTURE:
+#    Layer 1: infra/platform/prod/  → VNets, Security, Log Analytics (DEPLOY FIRST!)
+#    Layer 2: infra/envs/prod/      → THIS FILE: Applications only
+#
+# 🎓 DEPLOY ORDER:
+#    Step 1: cd infra/platform/prod && terraform apply -var-file="prod.tfvars"
+#    Step 2: cd infra/envs/prod && terraform apply -var-file="prod.tfvars"
+#
+# 🎓 HOW PROD DIFFERS FROM DEV AND STAGING:
 #    ┌────────────────────────────┬─────────┬───────────┬─────────────┐
 #    │ Feature                     │ Dev     │ Staging   │ Prod          │
 #    ├────────────────────────────┼─────────┼───────────┼─────────────┤
-#    │ NAT Gateway                 │ OFF     │ OFF       │ ON            │
-#    │ Private Endpoints           │ OFF     │ OFF       │ ON            │
-#    │ DDoS Protection             │ OFF     │ OFF       │ ON            │
 #    │ AKS Auto-scaling            │ OFF     │ OFF       │ ON (3→10)     │
 #    │ Cosmos DB Failover          │ OFF     │ OFF       │ ON            │
 #    │ Continuous Backup           │ OFF     │ OFF       │ ON            │
-#    │ NSG deny-all-inbound rule   │ NO      │ NO        │ YES           │
-#    │ Log retention               │ 30 days │ 60 days   │ 90 days       │
-#    │ Private Endpoint subnet     │ NO      │ NO        │ YES           │
+#    │ App Insights                │ OFF     │ ON        │ ON            │
 #    └────────────────────────────┴─────────┴───────────┴─────────────┘
+#    (NAT Gateway, DDoS, Private Endpoints, NSGs are now in Platform layer)
 # =============================================================================
 
 terraform {
@@ -53,10 +57,10 @@ provider "azurerm" {
 provider "azuread" {}
 
 # =============================================================================
-# RESOURCE GROUP - Always created
+# RESOURCE GROUP - Application layer's own resource group
 # =============================================================================
 resource "azurerm_resource_group" "main" {
-  name     = "${var.project_name}-rg-prod"
+  name     = "${var.project_name}-apps-rg-prod"
   location = var.location
   tags     = module.global_standards.common_tags
 }
@@ -77,140 +81,35 @@ module "global_standards" {
 }
 
 # =============================================================================
-# NETWORKING - With NAT Gateway, tighter NSGs, and private endpoint subnet
+# DATA SOURCES - Read Platform layer's infrastructure
 # =============================================================================
-# 🎓 PROD DIFFERENCES FROM DEV/STAGING:
-#    - NAT Gateway enabled (all outbound traffic gets a fixed IP for whitelisting)
-#    - Extra "pe-subnet" for private endpoints (Key Vault, Cosmos DB)
-#    - NSGs have explicit "deny-all-inbound" rules (only allowed traffic gets through)
-#    - Larger AKS subnet: /23 instead of /24 (510 IPs vs 254 for production scale)
+# 🎓 VNets, NSGs, NAT Gateway, DDoS, Key Vault, Log Analytics are ALL in
+#    infra/platform/prod/main.tf (Platform layer). We READ them here.
+#
+# ⚠️  PREREQUISITE: Platform layer MUST be deployed FIRST!
+#    Run: cd infra/platform/prod && terraform apply -var-file="prod.tfvars"
 # =============================================================================
-module "networking" {
-  source = "../../modules/networking"
 
-  resource_group_name = azurerm_resource_group.main.name
-  network_name        = "${var.project_name}-vnet-prod"
-  location            = var.location
-  address_space       = ["10.3.0.0/16"] # Different IP range for production
-
-  subnets = {
-    "aks-subnet" = {
-      address_prefixes  = ["10.3.1.0/23"] # 🎓 PROD: /23 = 510 IPs (dev uses /24 = 254)
-      service_endpoints = ["Microsoft.Sql", "Microsoft.Storage", "Microsoft.KeyVault", "Microsoft.AzureCosmosDB"]
-    }
-    "app-subnet" = {
-      address_prefixes  = ["10.3.3.0/24"]
-      service_endpoints = ["Microsoft.Sql", "Microsoft.Storage", "Microsoft.AzureCosmosDB"]
-    }
-    "data-subnet" = {
-      address_prefixes  = ["10.3.4.0/24"]
-      service_endpoints = ["Microsoft.Sql", "Microsoft.Storage"]
-    }
-    "pe-subnet" = {
-      address_prefixes  = ["10.3.5.0/24"] # 🎓 PROD ONLY: For private endpoints to Key Vault, Cosmos DB
-      service_endpoints = []              # Private endpoints don't need service endpoints
-    }
-  }
-
-  network_security_groups = {
-    "aks-nsg" = {
-      security_rules = {
-        "allow-https" = {
-          priority                   = 100
-          direction                  = "Inbound"
-          access                     = "Allow"
-          protocol                   = "Tcp"
-          source_port_range          = "*"
-          destination_port_range     = "443"
-          source_address_prefix      = "*"
-          destination_address_prefix = "*"
-        }
-        "deny-all-inbound" = {
-          priority                   = 4096
-          direction                  = "Inbound"
-          access                     = "Deny"
-          protocol                   = "*"
-          source_port_range          = "*"
-          destination_port_range     = "*"
-          source_address_prefix      = "*"
-          destination_address_prefix = "*"
-        }
-      }
-    }
-    "app-nsg" = {
-      security_rules = {
-        "allow-https-from-vnet" = {
-          priority                   = 100
-          direction                  = "Inbound"
-          access                     = "Allow"
-          protocol                   = "Tcp"
-          source_port_range          = "*"
-          destination_port_range     = "443"
-          source_address_prefix      = "VirtualNetwork"
-          destination_address_prefix = "*"
-        }
-        "deny-all-inbound" = {
-          priority                   = 4096
-          direction                  = "Inbound"
-          access                     = "Deny"
-          protocol                   = "*"
-          source_port_range          = "*"
-          destination_port_range     = "*"
-          source_address_prefix      = "*"
-          destination_address_prefix = "*"
-        }
-      }
-    }
-    "data-nsg" = {
-      security_rules = {
-        "allow-sql-from-app" = {
-          priority                   = 100
-          direction                  = "Inbound"
-          access                     = "Allow"
-          protocol                   = "Tcp"
-          source_port_range          = "*"
-          destination_port_range     = "1433"        # SQL Server port
-          source_address_prefix      = "10.3.3.0/24" # 🎓 ONLY app-subnet can reach database
-          destination_address_prefix = "*"
-        }
-        "deny-all-inbound" = {
-          priority                   = 4096
-          direction                  = "Inbound"
-          access                     = "Deny"
-          protocol                   = "*"
-          source_port_range          = "*"
-          destination_port_range     = "*"
-          source_address_prefix      = "*"
-          destination_address_prefix = "*"
-        }
-      }
-    }
-  }
-
-  subnet_nsg_associations = {
-    "aks-subnet"  = "aks-nsg"
-    "app-subnet"  = "app-nsg"
-    "data-subnet" = "data-nsg"
-  }
-
-  # 🎓 PROD: NAT Gateway ENABLED — all outbound traffic from VNet uses a fixed
-  #    public IP. Essential for whitelisting with external services.
-  create_nat_gateway = var.enable_nat_gateway # true in prod.tfvars
-
-  tags = module.global_standards.common_tags
+data "azurerm_virtual_network" "platform" {
+  name                = "${var.project_name}-vnet-prod"
+  resource_group_name = "${var.project_name}-platform-rg-prod"
 }
 
-# =============================================================================
-# LOG ANALYTICS - With longer retention
-# =============================================================================
-resource "azurerm_log_analytics_workspace" "main" {
-  name                = "${var.project_name}-logs-prod"
-  location            = var.location
-  resource_group_name = azurerm_resource_group.main.name
-  sku                 = "PerGB2018"
-  retention_in_days   = var.log_retention_days # 90 days for production
+data "azurerm_subnet" "aks" {
+  name                 = "aks-subnet"
+  virtual_network_name = data.azurerm_virtual_network.platform.name
+  resource_group_name  = data.azurerm_virtual_network.platform.resource_group_name
+}
 
-  tags = module.global_standards.common_tags
+data "azurerm_subnet" "app" {
+  name                 = "app-subnet"
+  virtual_network_name = data.azurerm_virtual_network.platform.name
+  resource_group_name  = data.azurerm_virtual_network.platform.resource_group_name
+}
+
+data "azurerm_log_analytics_workspace" "platform" {
+  name                = "${var.project_name}-logs-prod"
+  resource_group_name = "${var.project_name}-platform-rg-prod"
 }
 
 # =============================================================================
@@ -222,37 +121,8 @@ resource "azurerm_application_insights" "main" {
   name                = "${var.project_name}-insights-prod"
   location            = var.location
   resource_group_name = azurerm_resource_group.main.name
-  workspace_id        = azurerm_log_analytics_workspace.main.id
+  workspace_id        = data.azurerm_log_analytics_workspace.platform.id
   application_type    = "web"
-
-  tags = module.global_standards.common_tags
-}
-
-# =============================================================================
-# KEY VAULT - Full security: purge protection, network ACLs, private endpoint
-# =============================================================================
-# 🎓 PROD DIFFERENCES:
-#    - Purge protection: ON (can't permanently delete secrets for 90 days)
-#    - Network ACLs: Deny (only whitelisted IPs/VNets can access)
-#    - Private Endpoint: ON (Key Vault accessible only from within the VNet)
-# =============================================================================
-module "security" {
-  count  = var.enable_key_vault ? 1 : 0
-  source = "../../modules/security"
-
-  resource_group_name = azurerm_resource_group.main.name
-  key_vault_name      = "${var.project_name}kvprod" # Alphanumeric + hyphens, 3-24 chars
-  location            = var.location
-  tenant_id           = var.tenant_id
-
-  # Feature toggles - Production has all security features
-  purge_protection_enabled    = var.key_vault_purge_protection # true
-  network_acls_default_action = var.network_acl_default_action # Deny
-
-  # Private endpoint for Key Vault (if enabled)
-  enable_private_endpoint    = var.enable_private_endpoints
-  private_endpoint_subnet_id = var.enable_private_endpoints ? module.networking.subnet_ids["pe-subnet"] : null
-  vnet_id                    = module.networking.vnet_id
 
   tags = module.global_standards.common_tags
 }
@@ -274,17 +144,17 @@ module "aks" {
   location            = var.location
   dns_prefix          = "${var.project_name}-prod"
 
-  # Networking
-  vnet_subnet_id = module.networking.subnet_ids["aks-subnet"]
+  # Networking — reads from Platform layer's subnet (via data source)
+  vnet_subnet_id = data.azurerm_subnet.aks.id
 
   # Scaling - Production has auto-scaling
-  node_count          = var.aks_node_count      # 3 minimum
-  max_node_count      = var.aks_max_node_count  # Scale to 10
-  vm_size             = var.aks_node_size       # Standard_D4s_v3
-  enable_auto_scaling = var.enable_auto_scaling # true
+  node_count          = var.aks_node_count
+  max_node_count      = var.aks_max_node_count
+  vm_size             = var.aks_node_size
+  enable_auto_scaling = var.enable_auto_scaling
 
-  # Monitoring
-  log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
+  # Monitoring — reads from Platform layer's Log Analytics (via data source)
+  log_analytics_workspace_id = data.azurerm_log_analytics_workspace.platform.id
 
   tags = module.global_standards.common_tags
 }
@@ -300,11 +170,11 @@ module "container_apps" {
   environment_name    = "${var.project_name}-cae-prod"
   location            = var.location
 
-  # Networking
-  infrastructure_subnet_id = module.networking.subnet_ids["app-subnet"]
+  # Networking — reads from Platform layer's app-subnet (via data source)
+  infrastructure_subnet_id = data.azurerm_subnet.app.id
 
-  # Monitoring
-  log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
+  # Monitoring — reads from Platform layer's Log Analytics (via data source)
+  log_analytics_workspace_id = data.azurerm_log_analytics_workspace.platform.id
 
   tags = module.global_standards.common_tags
 }
@@ -327,15 +197,10 @@ module "cosmosdb" {
   location            = var.location
 
   # Feature toggles — Production has ALL reliability features
-  enable_automatic_failover       = true                                                     # 🎓 Auto-failover to secondary region
-  enable_multiple_write_locations = var.enable_geo_redundancy                                # Multi-region writes (if enabled)
-  public_network_access_enabled   = !var.enable_private_endpoints                            # 🎓 Public OFF when private ON
-  backup_type                     = var.enable_continuous_backup ? "Continuous" : "Periodic" # 🎓 Point-in-time restore
-
-  # Private endpoint for Cosmos DB (if enabled)
-  enable_private_endpoint    = var.enable_private_endpoints
-  private_endpoint_subnet_id = var.enable_private_endpoints ? module.networking.subnet_ids["pe-subnet"] : null
-  vnet_id                    = module.networking.vnet_id
+  enable_automatic_failover       = true
+  enable_multiple_write_locations = var.enable_geo_redundancy
+  public_network_access_enabled   = true
+  backup_type                     = var.enable_continuous_backup ? "Continuous" : "Periodic"
 
   tags = module.global_standards.common_tags
 }
@@ -353,24 +218,6 @@ module "webapp" {
 
   # SKU - Production uses premium tier
   sku_name = "P1v3" # Premium for production
-
-  tags = module.global_standards.common_tags
-}
-
-# =============================================================================
-# DDOS PROTECTION PLAN - Production only (expensive but critical)
-# =============================================================================
-# 🎓 WHAT IS DDOS? Distributed Denial of Service attack = flooding your app with
-#    fake traffic until real users can't access it.
-# 🎓 WHY EXPENSIVE? ~$2,944/month! Only enable for production with real users.
-# 🎓 WHAT IT DOES: Automatically detects + mitigates attack traffic.
-# =============================================================================
-resource "azurerm_network_ddos_protection_plan" "main" {
-  count = var.enable_ddos_protection ? 1 : 0
-
-  name                = "${var.project_name}-ddos-prod"
-  location            = var.location
-  resource_group_name = azurerm_resource_group.main.name
 
   tags = module.global_standards.common_tags
 }

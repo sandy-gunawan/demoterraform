@@ -31,8 +31,9 @@ variable "location" {
 }
 
 variable "tenant_id" {
-  description = "Azure tenant ID"
+  description = "Azure tenant ID (for Key Vault, RBAC)"
   type        = string
+  default     = "00000000-0000-0000-0000-000000000000"
 }
 
 variable "cost_center" {
@@ -90,54 +91,6 @@ variable "enable_cosmosdb" {
   default     = false
 }
 
-variable "enable_key_vault" {
-  description = "Deploy Key Vault (recommended for all environments)"
-  type        = bool
-  default     = true
-}
-
-# =============================================================================
-# SECURITY FEATURES
-# Dev: All disabled for simplicity (enable progressively in staging/prod)
-# =============================================================================
-# 🎓 WHY ALL OFF IN DEV?
-#    Security features add complexity and cost. For dev:
-#    - NAT Gateway: ~$32/month (not needed for testing)
-#    - Private Endpoints: ~$7.30/month each (makes debugging harder)
-#    - DDoS: ~$2,944/month (overkill for dev!)
-#    Enable in staging to test → Enable in prod for real.
-# =============================================================================
-
-variable "enable_nat_gateway" {
-  description = "Deploy NAT Gateway for outbound traffic control"
-  type        = bool
-  default     = false
-}
-
-variable "enable_private_endpoints" {
-  description = "Use private endpoints instead of public access"
-  type        = bool
-  default     = false
-}
-
-variable "enable_ddos_protection" {
-  description = "Enable DDoS Protection Plan (expensive!)"
-  type        = bool
-  default     = false
-}
-
-variable "key_vault_purge_protection" {
-  description = "Enable Key Vault purge protection (blocks deletion for 90 days)"
-  type        = bool
-  default     = false
-}
-
-variable "network_acl_default_action" {
-  description = "Default action for network ACLs (Allow = open, Deny = restricted)"
-  type        = string
-  default     = "Allow"
-}
-
 # =============================================================================
 # MONITORING FEATURES
 # Dev: Minimal monitoring to save cost
@@ -153,12 +106,6 @@ variable "enable_diagnostic_settings" {
   description = "Enable diagnostic settings on resources"
   type        = bool
   default     = false
-}
-
-variable "log_retention_days" {
-  description = "Log Analytics retention in days"
-  type        = number
-  default     = 30
 }
 
 # =============================================================================

@@ -21,8 +21,9 @@ variable "location" {
 }
 
 variable "tenant_id" {
-  description = "Azure tenant ID"
+  description = "Azure tenant ID (for RBAC)"
   type        = string
+  default     = "00000000-0000-0000-0000-000000000000"
 }
 
 variable "cost_center" {
@@ -72,47 +73,6 @@ variable "enable_cosmosdb" {
   default     = true # Prod: If you need database
 }
 
-variable "enable_key_vault" {
-  description = "Deploy Key Vault (recommended for all environments)"
-  type        = bool
-  default     = true
-}
-
-# =============================================================================
-# SECURITY FEATURES
-# Production: ALL ENABLED for maximum security
-# =============================================================================
-
-variable "enable_nat_gateway" {
-  description = "Deploy NAT Gateway for outbound traffic control"
-  type        = bool
-  default     = true # Prod: Yes
-}
-
-variable "enable_private_endpoints" {
-  description = "Use private endpoints instead of public access"
-  type        = bool
-  default     = true # Prod: Yes - no public access
-}
-
-variable "enable_ddos_protection" {
-  description = "Enable DDoS Protection Plan (expensive but important)"
-  type        = bool
-  default     = true # Prod: Yes
-}
-
-variable "key_vault_purge_protection" {
-  description = "Enable Key Vault purge protection (blocks deletion for 90 days)"
-  type        = bool
-  default     = true # Prod: Yes
-}
-
-variable "network_acl_default_action" {
-  description = "Default action for network ACLs (Allow = open, Deny = restricted)"
-  type        = string
-  default     = "Deny" # Prod: Deny all by default
-}
-
 # =============================================================================
 # MONITORING FEATURES
 # Production: FULL monitoring and diagnostics
@@ -128,12 +88,6 @@ variable "enable_diagnostic_settings" {
   description = "Enable diagnostic settings on resources"
   type        = bool
   default     = true # Prod: Yes
-}
-
-variable "log_retention_days" {
-  description = "Log Analytics retention in days"
-  type        = number
-  default     = 90 # Prod: 3 months (or more for compliance)
 }
 
 # =============================================================================

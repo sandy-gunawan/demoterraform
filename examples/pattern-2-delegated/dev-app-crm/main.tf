@@ -1,17 +1,18 @@
 # CRM Application - Terraform Configuration
 # =============================================================================
 # 🎓 NEWBIE NOTE: Pattern 2 teams use the SAME terraform version, provider
-# version, and backend storage as Platform team (Pattern 1).
+# version, and backend storage as Platform team.
 # Only the backend "key" is different (separate state file per app).
 #
-# What's SAME as Pattern 1:
+# What's SAME as Platform layer:
 #   - Terraform version (>= 1.5.0)
 #   - Provider version (~> 3.80)
 #   - Backend storage account (stcontosotfstate001)
 #   - Provider feature settings
+#   - Global standards module (tags, naming)
 #
-# What's DIFFERENT from Pattern 1:
-#   - Backend key (dev-app-crm.tfstate vs dev.terraform.tfstate)
+# What's DIFFERENT from Platform layer:
+#   - Backend key (dev-app-crm.tfstate vs platform-dev.tfstate)
 #   - No VNet creation (reads Platform's VNet via data sources)
 #   - Own resource group, own apps
 # =============================================================================
@@ -32,10 +33,11 @@ terraform {
 
   # Remote state storage - SAME storage account as Platform team!
   #
-  # 🎓 HOW STATE FILES ARE ORGANIZED:
+  # 🎓 HOW STATE FILES ARE ORGANIZED (Layered Infrastructure):
   #    Storage Account: stcontosotfstate001
   #    Container: tfstate/
-  #    ├── dev.terraform.tfstate      ← Platform team (Pattern 1, infra/envs/dev/)
+  #    ├── platform-dev.tfstate        ← Platform layer (infra/platform/dev/)
+  #    ├── dev.terraform.tfstate      ← Pattern 1 apps (infra/envs/dev/)
   #    ├── dev-app-crm.tfstate        ← CRM team (Pattern 2, THIS file)
   #    └── dev-app-ecommerce.tfstate  ← E-commerce team (Pattern 2)
   #
@@ -68,7 +70,7 @@ provider "azurerm" {
 # DATA SOURCES - Read Platform team's infrastructure
 # ============================================================================
 # 🎓 NEWBIE NOTE: We DON'T create the VNet here!
-# The Platform team already created it in infra/envs/dev/main.tf (line 115)
+# The Platform team already created it in infra/platform/dev/main.tf
 # We just READ it using Terraform data sources below.
 #
 # Think of it like this:
@@ -80,10 +82,10 @@ provider "azurerm" {
 #    We need this for Key Vault access policies (to know WHO we are in Azure AD).
 data "azurerm_client_config" "current" {}
 
-# Read CRM's dedicated VNet (created by Platform team in Pattern 1)
+# Read CRM's dedicated VNet (created by Platform team in Platform layer)
 #
 # 🎓 TRACEABILITY — Follow the trail:
-#    1. Platform team runs: infra/envs/dev/main.tf
+#    1. Platform team runs: infra/platform/dev/main.tf
 #    2. Which creates: module "networking_crm" { ... }
 #    3. That module creates VNet: "vnet-contoso-dev-crm-001" in "contoso-platform-rg-dev"
 #    4. We READ it here with data source (read-only, no modification!)
@@ -92,8 +94,8 @@ data "azurerm_client_config" "current" {}
 #    Platform team controls networking (IP ranges, security rules, naming).
 #    We just use what they built. Separation of concerns!
 #
-# ⚠️  PREREQUISITE: Platform team MUST deploy Pattern 1 FIRST!
-#    Run: cd infra/envs/dev && terraform apply -var-file="dev.tfvars"
+# ⚠️  PREREQUISITE: Platform team MUST deploy Platform layer FIRST!
+#    Run: cd infra/platform/dev && terraform apply -var-file="dev.tfvars"
 #    If VNet doesn't exist, this will FAIL with "resource not found" error.
 data "azurerm_virtual_network" "crm" {
   name                = "vnet-contoso-dev-crm-001" # Must match: module "networking_crm" → network_name
@@ -127,6 +129,25 @@ module "naming" {
 }
 
 # ============================================================================
+# GLOBAL STANDARDS - Inherited from Platform (consistent tags)
+# ============================================================================
+# 🎓 WHY? Pattern 2 teams use the SAME global standards as Platform.
+#    This ensures ALL resources across ALL teams have consistent tags.
+#    No more hardcoding tags in module.global_standards.common_tags!
+# ============================================================================
+module "global_standards" {
+  source = "../../../infra/global"
+
+  organization_name = var.company_name
+  project_name      = "${var.company_name}-${var.workload}"
+  environment       = var.environment
+  location          = var.location
+  cost_center       = var.cost_center
+  owner_email       = var.owner_email
+  repository_url    = var.repository_url
+}
+
+# ============================================================================
 # RESOURCE GROUP - CRM team's own resource group
 # ============================================================================
 # 🎓 WHY OWN RESOURCE GROUP?
@@ -142,7 +163,7 @@ resource "azurerm_resource_group" "crm" {
   name     = "rg-${var.company_name}-${var.environment}-${var.workload}-001"
   location = var.location
 
-  tags = merge(var.default_tags, {
+  tags = merge(module.global_standards.common_tags, {
     Application = "CRM System"
     Team        = "CRM Team"
   })
@@ -166,7 +187,7 @@ resource "azurerm_service_plan" "crm" {
   os_type             = "Linux"             # Linux is cheaper than Windows for the same SKU
   sku_name            = var.app_service_sku # B1 for dev (~$13/month), P1V2 for prod
 
-  tags = merge(var.default_tags, {
+  tags = merge(module.global_standards.common_tags, {
     Application = "CRM System"
   })
 }
@@ -207,7 +228,7 @@ resource "azurerm_linux_web_app" "crm" {
     "WEBSITES_PORT"   = "3000"                                       # ← The port your Node.js app listens on
   }
 
-  tags = merge(var.default_tags, {
+  tags = merge(module.global_standards.common_tags, {
     Application = "CRM System"
   })
 }
@@ -258,7 +279,7 @@ resource "azurerm_cosmosdb_account" "crm" {
   public_network_access_enabled = true
   ip_range_filter               = var.cosmos_allowed_ips # Empty = Azure services only
 
-  tags = merge(var.default_tags, {
+  tags = merge(module.global_standards.common_tags, {
     Application = "CRM System"
   })
 }
@@ -327,7 +348,7 @@ resource "azurerm_key_vault" "crm" {
     ]
   }
 
-  tags = merge(var.default_tags, {
+  tags = merge(module.global_standards.common_tags, {
     Application = "CRM System"
   })
 }
@@ -363,7 +384,7 @@ resource "azurerm_user_assigned_identity" "crm" {
   location            = azurerm_resource_group.crm.location
   resource_group_name = azurerm_resource_group.crm.name
 
-  tags = merge(var.default_tags, {
+  tags = merge(module.global_standards.common_tags, {
     Application = "CRM System"
   })
 }

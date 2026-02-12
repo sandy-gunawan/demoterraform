@@ -19,17 +19,13 @@ workload     = "crm"
 location     = "indonesiacentral" # Jakarta - Indonesia datacenter region
 
 # ----------------------------------------------------------------------------
-# Tags (for cost tracking and organization)
+# Tags (inherited from global_standards module)
+# 🎓 Tags are now centralized! Just set cost_center and owner_email.
+#    The global_standards module (infra/global/) generates consistent tags.
 # ----------------------------------------------------------------------------
 
-default_tags = {
-  Environment = "dev"
-  ManagedBy   = "Terraform"
-  Team        = "CRM Team"
-  TechLead    = "bob.smith@company.com"
-  CostCenter  = "CC-5678"
-  Application = "Customer Relationship Management"
-}
+cost_center = "CC-5678"
+owner_email = "crm-team@contoso.com"
 
 # ----------------------------------------------------------------------------
 # App Service Configuration

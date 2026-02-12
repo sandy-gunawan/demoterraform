@@ -27,18 +27,28 @@ variable "location" {
 }
 
 # ============================================================================
-# TAGS
+# TAGS - Inherited from Global Standards
+# ============================================================================
+# 🎓 NEWBIE NOTE: Tags are now inherited from global_standards module.
+#    No more hardcoded default_tags! Just set cost_center and owner_email.
 # ============================================================================
 
-variable "default_tags" {
-  description = "Default tags for all resources"
-  type        = map(string)
-  default = {
-    Environment = "dev"
-    ManagedBy   = "Terraform"
-    Team        = "E-commerce Team"
-    CostCenter  = "CC-1234"
-  }
+variable "cost_center" {
+  description = "Cost center for billing (used by global_standards module)"
+  type        = string
+  default     = "CC-1234"
+}
+
+variable "owner_email" {
+  description = "Owner email for the resources"
+  type        = string
+  default     = "ecommerce-team@contoso.com"
+}
+
+variable "repository_url" {
+  description = "Git repository URL"
+  type        = string
+  default     = "https://dev.azure.com/contoso/terraform-infrastructure"
 }
 
 # ============================================================================

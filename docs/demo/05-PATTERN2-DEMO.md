@@ -2,7 +2,7 @@
 
 > **Test Case**: Application teams deploy independently with their own state files while reading Platform-created networking.
 > This is a **standalone test case** — can be run independently for CI/CD pipeline demos.
-> **Pre-requisite**: Pattern 1 must run first (creates VNets that Pattern 2 reads).
+> **Pre-requisite**: Platform layer must be deployed first (creates VNets that Pattern 2 reads).
 
 ---
 
@@ -51,14 +51,14 @@ examples/pattern-2-delegated/
 
 ```
 ┌────────────────────────────────────────────┐
-│        Platform Team (Pattern 1)           │
+│      Platform Layer (infra/platform/)      │
 │     Creates ALL VNets with governance      │
 │                                            │
 │  VNet 10.1.0.0/16 → Shared services       │
 │  VNet 10.2.0.0/16 → CRM app              │
 │  VNet 10.3.0.0/16 → E-commerce app       │
 │                                            │
-│  State: dev.terraform.tfstate              │
+│  State: platform-dev.tfstate               │
 └──────────────┬─────────────┬───────────────┘
                │             │
      ┌─────────▼──────┐  ┌──▼──────────────┐
@@ -80,18 +80,25 @@ examples/pattern-2-delegated/
 
 ### How `data` Sources Work (for Newbies)
 
-In Pattern 2, teams don't create networking — they **read** what Platform created:
+In Pattern 2, teams don't create networking — they **read** what Platform layer created:
 
 ```hcl
-# CRM team's main.tf — READS Platform's VNet (doesn't create it!)
+# CRM team's main.tf — READS Platform layer's VNet (doesn't create it!)
 data "azurerm_virtual_network" "crm" {
-  name                = "vnet-contoso-dev-crm-001"        # Platform created this
-  resource_group_name = "contoso-platform-rg-dev"         # Platform's resource group
+  name                = "vnet-contoso-dev-crm-001"        # Platform layer created this
+  resource_group_name = "contoso-platform-rg-dev"         # Platform layer's resource group
+}
+
+# Inherit tags from global standards (same as platform)
+module "global_standards" {
+  source = "../../../infra/global"
+  # ...
 }
 
 # Now use it:
-resource "azurerm_app_service" "crm" {
+resource "azurerm_linux_web_app" "crm" {
   virtual_network_subnet_id = data.azurerm_subnet.crm_app.id  # Reference, not create!
+  tags = module.global_standards.common_tags                    # Consistent tags!
 }
 ```
 
@@ -101,15 +108,15 @@ resource "azurerm_app_service" "crm" {
 
 ## Step-by-Step Demo
 
-### Pre-requisite: Pattern 1 Must Run First!
+### Pre-requisite: Platform Layer Must Run First!
 
-Pattern 2 teams READ networking that Pattern 1 creates. Run Pattern 1 first:
+Pattern 2 teams READ networking that Platform layer creates. Deploy platform first:
 ```powershell
-# Pattern 1 creates all VNets (including Pattern 2 VNets)
-cd infra/envs/dev
+# Platform layer creates all VNets (including Pattern 2 VNets)
+cd infra/platform/dev
 terraform init
 terraform apply -var-file="dev.tfvars"
-# This creates VNet 10.2.x (CRM) and VNet 10.3.x (E-commerce)
+# This creates VNet 10.1.x (shared), 10.2.x (CRM) and 10.3.x (E-commerce)
 ```
 
 > **Why?** Platform team governs ALL networking. Pattern 2 teams focus only on applications. This is the framework's governance model!
@@ -240,7 +247,7 @@ CREATES (E-commerce team manages these):
 
 ---
 
-## Complete Picture After Pattern 1 + Pattern 2
+## Complete Picture After Platform + Pattern 1 + Pattern 2
 
 ```
 Azure Subscription
@@ -248,15 +255,18 @@ Azure Subscription
 ├── contoso-tfstate-rg (State Storage — shared by all)
 │   └── stcontosotfstate001
 │       └── tfstate/
-│           ├── dev.terraform.tfstate        ← Pattern 1 (all VNets + shared services)
-│           ├── dev-app-crm.tfstate          ← CRM team (apps only)
-│           └── dev-app-ecommerce.tfstate    ← E-commerce team (apps only)
+│           ├── platform-dev.tfstate         ← Platform Layer (VNets, Security, Monitoring)
+│           ├── dev.terraform.tfstate        ← App Layer Pattern 1 (AKS, CosmosDB, etc.)
+│           ├── dev-app-crm.tfstate          ← CRM team - Pattern 2 (apps only)
+│           └── dev-app-ecommerce.tfstate    ← E-commerce team - Pattern 2 (apps only)
 │
-├── contoso-platform-rg-dev (Pattern 1 — Platform team manages)
+├── contoso-platform-rg-dev (Platform Layer — VNets, Security)
 │   ├── VNet 10.1.0.0/16 (shared services)
 │   ├── VNet 10.2.0.0/16 (CRM networking)
 │   ├── VNet 10.3.0.0/16 (E-commerce networking)
 │   ├── Log Analytics, Key Vault
+│
+├── contoso-apps-rg-dev (App Layer Pattern 1 — Platform team manages)
 │   ├── AKS, CosmosDB (Team Alpha)
 │   ├── Container Apps (Team Beta)
 │   └── PostgreSQL (Team Beta)
@@ -355,15 +365,16 @@ foreach ($app in $apps) {
 | Aspect | Pattern 1: Centralized | Pattern 2: Delegated |
 |--------|----------------------|---------------------|
 | **Who deploys?** | Platform team only | Each app team |
-| **State files** | 1 per environment | 1 per app per environment |
+| **State files** | 2 per environment (platform + apps) | 1 per app per environment |
 | **Team independence** | Low — must request changes | High — self-service |
-| **Conflict risk** | Higher — shared state | Lower — separate state |
+| **Conflict risk** | Lower — separated state | Lowest — separate state |
 | **Deployment speed** | Slower — bottleneck | Faster — parallel |
-| **Consistency** | Very high | Medium (follow conventions) |
+| **Consistency** | Very high | High (via global_standards module) |
 | **Complexity** | Lower | Higher |
 | **Best for** | Small org (< 5 teams) | Large org (5+ teams) |
-| **Blast radius** | Entire environment | Only one application |
-| **Networking** | Created in main.tf | Read via `data` blocks |
+| **Blast radius** | Platform OR apps (separated) | Only one application |
+| **Networking** | Created in platform layer | Read via `data` blocks |
+| **Tags** | From global_standards module | From global_standards module |
 
 ### Growth Path: Start Simple, Scale Up
 
@@ -394,10 +405,11 @@ Phase 3 (Month 6+):    Pattern 2 → Full self-service for most teams
 
 | Question | Answer |
 |----------|--------|
-| "Can Pattern 2 teams delete the VNet?" | "No! VNet is in Platform's state file. Pattern 2 teams can only READ it." |
+| "Can Pattern 2 teams delete the VNet?" | "No! VNet is in Platform layer's state file. Pattern 2 teams can only READ it." |
 | "What if Platform renames a VNet?" | "Pattern 2 teams need to update their data source names. This is coordinated." |
 | "Can two Pattern 2 teams affect each other?" | "No. Separate VNets, separate state files, separate resource groups." |
-| "How do we add a new Pattern 2 team?" | "1) Platform creates new VNet. 2) Copy an existing Pattern 2 folder. 3) Update variables." |
+| "How do we add a new Pattern 2 team?" | "1) Platform creates new VNet in platform layer. 2) Copy an existing Pattern 2 folder. 3) Update variables." |
+| "Do Pattern 2 teams inherit tags?" | "Yes! Via `module \"global_standards\"` — same tags as Platform layer." |
 | "What about production?" | "Same structure! Each team has `prod.tfvars` with stronger settings." |
 
 ---

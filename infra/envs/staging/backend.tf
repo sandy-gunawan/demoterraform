@@ -1,19 +1,16 @@
-# Terraform Backend Configuration for Staging Environment
+# Terraform Backend Configuration for Staging Environment (Application Layer)
 #
 # This file configures where Terraform stores its "state" for the STAGING environment.
 # Uses the same storage account as dev but a DIFFERENT state file.
 #
-# BACKEND NAMING (MUST match across all environments):
-#   Resource Group:    contoso-tfstate-rg
-#   Storage Account:   stcontosotfstate001
-#   Container:         tfstate
+# STATE FILE KEYS (Layered Infrastructure):
+#   Layer 1 - Platform:
+#     platform-staging.tfstate     <- Platform layer (infra/platform/staging/)
+#   Layer 2 - Applications:
+#     staging.terraform.tfstate    <- THIS file (Pattern 1 apps)
 #
-# STATE FILE KEYS:
-#   dev.terraform.tfstate       <- Dev environment
-#   staging.terraform.tfstate   <- THIS file (Staging)
-#   prod.terraform.tfstate      <- Production
-#   dev-app-crm.tfstate         <- CRM team (Pattern 2)
-#   dev-app-ecommerce.tfstate   <- E-commerce team (Pattern 2)
+# ⚠️  PREREQUISITE: Deploy platform layer FIRST!
+#    cd infra/platform/staging && terraform apply -var-file="staging.tfvars"
 
 terraform {
   backend "azurerm" {

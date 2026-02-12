@@ -1,17 +1,18 @@
 # E-Commerce Application - Terraform Configuration
 # =============================================================================
 # 🎓 NEWBIE NOTE: Pattern 2 teams use the SAME terraform version, provider
-# version, and backend storage as Platform team (Pattern 1).
+# version, and backend storage as the Platform layer (infra/platform/).
 # Only the backend "key" is different (separate state file per app).
 #
-# What's SAME as Pattern 1:
+# What's SAME as Platform layer:
 #   - Terraform version (>= 1.5.0)
 #   - Provider version (~> 3.80)
 #   - Backend storage account (stcontosotfstate001)
 #   - Provider feature settings
+#   - Global standards (naming, tagging) via module "global_standards"
 #
-# What's DIFFERENT from Pattern 1:
-#   - Backend key (dev-app-ecommerce.tfstate vs dev.terraform.tfstate)
+# What's DIFFERENT from Platform layer:
+#   - Backend key (dev-app-ecommerce.tfstate vs platform-dev.tfstate)
 #   - No VNet creation (reads Platform's VNet via data sources)
 #   - Own resource group, own apps
 # =============================================================================
@@ -34,7 +35,8 @@ terraform {
   # 🎓 HOW STATE FILES ARE ORGANIZED:
   #    Storage Account: stcontosotfstate001
   #    Container: tfstate/
-  #    ├── dev.terraform.tfstate      ← Platform team (Pattern 1)
+  #    ├── platform-dev.tfstate       ← Platform layer (infra/platform/dev/)
+  #    ├── dev.terraform.tfstate      ← App layer Pattern 1 (infra/envs/dev/)
   #    ├── dev-app-crm.tfstate        ← CRM team (Pattern 2)
   #    └── dev-app-ecommerce.tfstate  ← E-commerce team (Pattern 2, THIS file)
   #
@@ -67,7 +69,7 @@ provider "azurerm" {
 # DATA SOURCES - Read Platform team's infrastructure
 # ============================================================================
 # 🎓 NEWBIE NOTE: We DON'T create the VNet here!
-# The Platform team already created it in infra/envs/dev/main.tf (line 172)
+# The Platform team already created it in infra/platform/dev/main.tf
 # We just READ it using Terraform data sources below.
 #
 # Think of it like this:
@@ -79,16 +81,16 @@ provider "azurerm" {
 #    We need this for Key Vault access policies (to know WHO we are in Azure AD).
 data "azurerm_client_config" "current" {}
 
-# Read E-commerce's dedicated VNet (created by Platform team in Pattern 1)
+# Read E-commerce's dedicated VNet (created by Platform layer)
 #
 # 🎓 TRACEABILITY — Follow the trail:
-#    1. Platform team runs: infra/envs/dev/main.tf
+#    1. Platform team runs: infra/platform/dev/main.tf
 #    2. Which creates: module "networking_ecommerce" { ... }
 #    3. That module creates VNet: "vnet-contoso-dev-ecommerce-001"
 #    4. We READ it here with data source (read-only, no modification!)
 #
-# ⚠️  PREREQUISITE: Platform team MUST deploy Pattern 1 FIRST!
-#    Run: cd infra/envs/dev && terraform apply -var-file="dev.tfvars"
+# ⚠️  PREREQUISITE: Platform team MUST deploy Platform layer FIRST!
+#    Run: cd infra/platform/dev && terraform apply -var-file="dev.tfvars"
 data "azurerm_virtual_network" "ecommerce" {
   name                = "vnet-contoso-dev-ecommerce-001" # Must match: module "networking_ecommerce" → network_name
   resource_group_name = "contoso-platform-rg-dev"        # Must match: resource "azurerm_resource_group" "main"
@@ -100,6 +102,25 @@ data "azurerm_subnet" "ecom_aks" {
   name                 = "ecom-aks-subnet"                           # Must match subnet name
   virtual_network_name = data.azurerm_virtual_network.ecommerce.name # From VNet data source above
   resource_group_name  = data.azurerm_virtual_network.ecommerce.resource_group_name
+}
+
+# ============================================================================
+# GLOBAL STANDARDS - Inherit tagging from Platform (consistency!)
+# ============================================================================
+# 🎓 WHY? All teams use the SAME tagging via global_standards module.
+#    No more hardcoded default_tags! Tags come from infra/global/
+#    so if platform changes tagging policy, ALL teams inherit it.
+# ============================================================================
+module "global_standards" {
+  source = "../../../infra/global"
+
+  organization_name = var.company_name
+  project_name      = "${var.company_name}-${var.workload}"
+  environment       = var.environment
+  location          = var.location
+  cost_center       = var.cost_center
+  owner_email       = var.owner_email
+  repository_url    = var.repository_url
 }
 
 # ============================================================================
@@ -128,7 +149,7 @@ resource "azurerm_resource_group" "ecommerce" {
   name     = "rg-${var.company_name}-${var.environment}-${var.workload}-001"
   location = var.location
 
-  tags = merge(var.default_tags, {
+  tags = merge(module.global_standards.common_tags, {
     Application = "E-commerce API"
     Team        = "E-commerce Team"
   })
@@ -194,7 +215,7 @@ resource "azurerm_kubernetes_cluster" "dedicated" {
     dns_service_ip = "10.2.0.10"   # Must be inside service_cidr
   }
 
-  tags = merge(var.default_tags, {
+  tags = merge(module.global_standards.common_tags, {
     Application = "E-commerce API"
   })
 }
@@ -233,7 +254,7 @@ resource "azurerm_cosmosdb_account" "ecommerce" {
   public_network_access_enabled = true
   ip_range_filter               = var.cosmos_allowed_ips
 
-  tags = merge(var.default_tags, {
+  tags = merge(module.global_standards.common_tags, {
     Application = "E-commerce API"
   })
 }
@@ -302,7 +323,7 @@ resource "azurerm_key_vault" "ecommerce" {
     ]
   }
 
-  tags = merge(var.default_tags, {
+  tags = merge(module.global_standards.common_tags, {
     Application = "E-commerce API"
   })
 }
@@ -329,7 +350,7 @@ resource "azurerm_user_assigned_identity" "ecommerce" {
   location            = azurerm_resource_group.ecommerce.location
   resource_group_name = azurerm_resource_group.ecommerce.name
 
-  tags = merge(var.default_tags, {
+  tags = merge(module.global_standards.common_tags, {
     Application = "E-commerce API"
   })
 }
