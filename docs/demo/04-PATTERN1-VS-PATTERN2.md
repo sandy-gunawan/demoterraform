@@ -207,6 +207,297 @@ E-commerce Team                   (Simultaneously!)           Azure
 
 ---
 
+## Deep Dive: How Pattern 2 Actually Works
+
+This is the most confusing part for beginners, so let's break it down step-by-step.
+
+### The Shared Infrastructure Question
+
+**Question**: "In Pattern 2, how do app teams connect to shared infrastructure? Who creates it? Do they need Pattern 1 first?"
+
+**Answer**: Yes! The Platform team creates the shared infrastructure FIRST. This is **separate** from Pattern 1's main.tf.
+
+### Step-by-Step: Platform Team's Job
+
+#### Step 1: Platform Team Creates Shared Infrastructure
+
+The Platform team deploys **only** the networking foundation. They can do this in two ways:
+
+**Option A: Use a simplified version of Pattern 1 (Recommended)**
+
+```bash
+# Platform team creates ONLY the networking parts
+cd infra/envs/dev
+
+# Edit dev.tfvars - DISABLE all app services
+enable_aks            = false  # ← App teams will create their own
+enable_cosmosdb       = false  # ← App teams will create their own
+enable_container_apps = false  # ← App teams will create their own
+enable_webapp         = false  # ← App teams will create their own
+enable_key_vault      = true   # ← Shared Key Vault (optional)
+
+# Deploy - This creates ONLY:
+# - VNet + Subnets
+# - NSGs
+# - Log Analytics
+terraform apply -var-file="dev.tfvars"
+```
+
+**Result**: Platform team has a state file `dev.terraform.tfstate` that contains:
+- ✅ VNet: `vnet-contoso-dev-001`
+- ✅ Subnets: `snet-contoso-dev-aks-001`, `snet-contoso-dev-app-001`
+- ✅ NSGs: `nsg-contoso-dev-aks-001`
+- ✅ Log Analytics: `log-contoso-dev-001`
+- ❌ NO AKS, NO CosmosDB, NO Container Apps (app teams create those!)
+
+**Option B: Create a separate "landing-zone-only" folder**
+
+```
+infra/landing-zone-shared/
+├── main.tf          ← Creates ONLY VNet, Subnets, Logs
+├── variables.tf
+├── dev.tfvars
+└── backend.tf       ← State: dev-shared-infra.tfstate
+```
+
+This is cleaner but requires more setup.
+
+### Step 2: App Teams Reference the Shared Infrastructure
+
+Now the CRM team wants to deploy their app. They **DO NOT** create the VNet. They **READ** it using `data` blocks.
+
+**File**: `examples/pattern-2-delegated/dev-app-crm/main.tf`
+
+```hcl
+# ============================================================================
+# DATA SOURCES - Read existing infrastructure created by Platform team
+# ============================================================================
+
+data "azurerm_virtual_network" "landing_zone" {
+  name                = "vnet-contoso-dev-001"              # ← Must match what Platform created
+  resource_group_name = "rg-contoso-dev-network-001"        # ← Must match exactly!
+}
+
+data "azurerm_subnet" "app_service" {
+  name                 = "snet-contoso-dev-app-001"         # ← Must match subnet name
+  virtual_network_name = data.azurerm_virtual_network.landing_zone.name
+  resource_group_name  = data.azurerm_virtual_network.landing_zone.resource_group_name
+}
+
+# ============================================================================
+# CRM'S OWN RESOURCES - These are created by CRM team
+# ============================================================================
+
+resource "azurerm_resource_group" "crm" {
+  name     = "rg-contoso-dev-crm-001"    # ← CRM's own resource group
+  location = var.location
+}
+
+resource "azurerm_linux_web_app" "crm" {
+  name                = "app-contoso-dev-crm-001"
+  resource_group_name = azurerm_resource_group.crm.name
+  
+  # Connect to Platform team's subnet using data source
+  virtual_network_subnet_id = data.azurerm_subnet.app_service.id  # ← Here's the connection!
+}
+```
+
+### Step 3: Understanding the State File Separation
+
+```
+Azure Storage Account: tfstatecontosoid
+└── Container: tfstate
+    ├── dev.terraform.tfstate           ← Platform team's state (shared infra)
+    │   Contains:
+    │   - VNet: vnet-contoso-dev-001
+    │   - Subnets: snet-contoso-dev-aks-001, snet-contoso-dev-app-001
+    │   - NSGs: nsg-contoso-dev-aks-001
+    │   - Log Analytics: log-contoso-dev-001
+    │
+    ├── dev-app-crm.tfstate             ← CRM team's state
+    │   Contains:
+    │   - Resource Group: rg-contoso-dev-crm-001
+    │   - App Service: app-contoso-dev-crm-001
+    │   - CosmosDB: cosmos-contoso-dev-crm-001
+    │   - Key Vault: kv-contoso-dev-crm
+    │   - (NO VNet, NO Subnets - those are in Platform's state!)
+    │
+    └── dev-app-ecommerce.tfstate       ← E-commerce team's state
+        Contains:
+        - Resource Group: rg-contoso-dev-ecommerce-001
+        - AKS: aks-contoso-dev-ecommerce-001
+        - CosmosDB: cosmos-contoso-dev-ecommerce-001
+        - Key Vault: kv-contoso-dev-ecommerce
+        - (NO VNet, NO Subnets - those are in Platform's state!)
+```
+
+### The Critical Rule: Names Must Match Exactly!
+
+**This is why it's so important:**
+
+```hcl
+# Platform team creates (in infra/envs/dev/main.tf):
+resource "azurerm_virtual_network" "main" {
+  name                = "vnet-contoso-dev-001"    # ← This name
+  resource_group_name = "rg-contoso-dev-network-001"
+}
+
+# CRM team reads (in examples/pattern-2-delegated/dev-app-crm/main.tf):
+data "azurerm_virtual_network" "landing_zone" {
+  name                = "vnet-contoso-dev-001"    # ← MUST match exactly!
+  resource_group_name = "rg-contoso-dev-network-001"  # ← MUST match exactly!
+}
+```
+
+**If the names don't match:**
+```
+Error: Virtual network "vnet-contoso-dev-002" not found
+```
+
+### Why Must Names Be the Same?
+
+Because `data` blocks **query Azure** to find existing resources. They're like a search:
+
+```
+Platform team:   Creates a resource named "vnet-contoso-dev-001" in Azure
+                 ↓
+                 Azure stores it
+                 ↓
+CRM team:        Searches Azure: "Give me the VNet named vnet-contoso-dev-001"
+                 ↓
+                 Azure finds it and returns the details
+                 ↓
+CRM team:        Uses the subnet ID to connect their App Service
+```
+
+### Common Mistakes & Solutions
+
+| Mistake | Problem | Solution |
+|---------|---------|----------|
+| **CRM team tries to create VNet** | Error: VNet already exists | Use `data` block, not `resource` |
+| **Names don't match** | Error: Resource not found | Coordinate naming with Platform team |
+| **Platform team deletes VNet** | All apps break! | Never delete shared infra while apps use it |
+| **Forgetting to deploy shared infra first** | Error: VNet not found | Platform team must deploy first |
+| **Wrong resource group name** | Error: Not found | Check Platform team's naming exactly |
+
+### Can Pattern 2 Work WITHOUT Pattern 1?
+
+**YES!** Pattern 2 does NOT require Pattern 1. Here's how:
+
+**Scenario: Pure Pattern 2 (No Pattern 1)**
+
+```
+infra/
+├── shared-foundation/              ← Platform team's MINIMAL folder
+│   ├── main.tf                     ← Creates ONLY VNet, Subnets, Logs
+│   ├── variables.tf
+│   ├── dev.tfvars
+│   └── backend.tf                  ← State: dev-shared-foundation.tfstate
+│
+└── (NO infra/envs/dev/ needed!)    ← Pattern 1 folder doesn't exist
+
+examples/pattern-2-delegated/
+├── dev-app-crm/                    ← CRM team's folder
+├── dev-app-ecommerce/              ← E-commerce team's folder
+└── dev-app-marketing/              ← Marketing team's folder
+```
+
+**The ONLY requirement:**
+1. Platform team creates the shared networking ONCE
+2. App teams reference it using `data` blocks
+3. Each team has their own state file
+
+**Pattern 1 vs Pattern 2 Analogy:**
+
+| Pattern | Analogy |
+|---------|---------|
+| **Pattern 1** | **Hotel**: One manager (Platform team) controls all rooms. Teams request rooms. One state file for entire hotel. |
+| **Pattern 2** | **Apartment Complex**: One landlord (Platform team) owns the building (VNet/roads/electricity). Each tenant (app team) manages their own apartment. Separate lease (state file) per apartment. |
+
+### Visual: How Data Sources Connect to Shared Infrastructure
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  Platform Team's State: dev.terraform.tfstate                 │
+│  ┌──────────────────────────────────────────────────────────┐│
+│  │ resource "azurerm_virtual_network" "main" {              ││
+│  │   name = "vnet-contoso-dev-001"                          ││
+│  │   ...                                                     ││
+│  │ }                                                         ││
+│  │                                                           ││
+│  │ resource "azurerm_subnet" "app_subnet" {                 ││
+│  │   name = "snet-contoso-dev-app-001"                      ││
+│  │   ...                                                     ││
+│  │ }                                                         ││
+│  └──────────────────┬────────────────────────────────────────┘│
+│                     │                                          │
+│                     │ terraform apply                          │
+│                     ▼                                          │
+│              ┌─────────────┐                                  │
+│              │    Azure    │                                  │
+│              │  Creates:   │                                  │
+│              │  VNet       │                                  │
+│              │  Subnets    │                                  │
+│              └──────┬──────┘                                  │
+│                     │                                          │
+└─────────────────────┼──────────────────────────────────────────┘
+                      │ (Resources exist in Azure)
+                      │
+┌─────────────────────┼──────────────────────────────────────────┐
+│  CRM Team's State: dev-app-crm.tfstate                         │
+│  ┌────────────────┴─────────────────────────────────────────┐ │
+│  │ data "azurerm_virtual_network" "landing_zone" {          │ │
+│  │   name = "vnet-contoso-dev-001"  ← Searches Azure       │ │
+│  │ }                                                         │ │
+│  │                                                           │ │
+│  │ data "azurerm_subnet" "app_service" {                    │ │
+│  │   name = "snet-contoso-dev-app-001"  ← Searches Azure   │ │
+│  │ }                                                         │ │
+│  │                                                           │ │
+│  │ resource "azurerm_linux_web_app" "crm" {                 │ │
+│  │   virtual_network_subnet_id =                            │ │
+│  │     data.azurerm_subnet.app_service.id ← Uses found ID! │ │
+│  │ }                                                         │ │
+│  └───────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Deployment Timeline for Pattern 2
+
+```
+Day 1: Platform Team Setup
+   ↓
+   Platform team deploys shared infrastructure:
+   - infra/envs/dev/main.tf (with all app toggles = false)
+   - OR infra/shared-foundation/main.tf
+   - Result: VNet + Subnets + Logs exist in Azure
+   - State file: dev.terraform.tfstate
+
+Day 2-10: App Teams Deploy Independently
+   ↓
+   CRM team:
+   - Creates examples/pattern-2-delegated/dev-app-crm/
+   - Uses data blocks to reference Platform's VNet
+   - Deploys their resources
+   - State file: dev-app-crm.tfstate
+   
+   E-commerce team (same time!):
+   - Creates examples/pattern-2-delegated/dev-app-ecommerce/
+   - Uses data blocks to reference Platform's VNet
+   - Deploys their resources
+   - State file: dev-app-ecommerce.tfstate
+   
+   Marketing team (same time!):
+   - Creates their own folder
+   - Uses data blocks to reference Platform's VNet
+   - Deploys their resources
+   - State file: dev-app-marketing.tfstate
+```
+
+**Key Point:** All teams work in parallel AFTER Platform team finishes shared infra!
+
+---
+
 ## Comparison Table
 
 | Aspect | Pattern 1: Centralized | Pattern 2: Delegated |

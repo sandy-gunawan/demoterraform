@@ -10,7 +10,7 @@
 # -----------------------------------------------------------------------------
 organization_name = "mycompany"
 project_name      = "myapp"
-location          = "eastus"
+location          = "southeastasia"  # Singapore - closest full-featured region to Indonesia
 
 # Azure AD Configuration
 # Get your tenant ID: az account show --query tenantId -o tsv

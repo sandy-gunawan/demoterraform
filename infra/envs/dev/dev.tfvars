@@ -10,7 +10,7 @@
 # -----------------------------------------------------------------------------
 organization_name = "mycompany"
 project_name      = "myapp"
-location          = "eastus"
+location          = "southeastasia"  # Singapore - closest full-featured region to Indonesia
 
 # Azure AD Configuration
 # Get your tenant ID: az account show --query tenantId -o tsv
@@ -54,4 +54,4 @@ enable_auto_scaling     = false  # Fixed size
 enable_geo_redundancy   = false  # Single region OK
 enable_continuous_backup = false  # Periodic backup OK
 aks_node_count          = 1       # Single node
-aks_node_size           = "Standard_D8ds_v5"  # Available in indonesiacentral
+aks_node_size           = "Standard_D2s_v3"  # Minimal but functional (2 vCPU, 8GB RAM) - Available in SE Asia

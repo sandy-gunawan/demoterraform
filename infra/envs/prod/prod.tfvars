@@ -10,7 +10,7 @@
 # -----------------------------------------------------------------------------
 organization_name = "mycompany"
 project_name      = "myapp"
-location          = "eastus"
+location          = "southeastasia"  # Singapore - closest full-featured region to Indonesia
 
 # Azure AD Configuration
 # Get your tenant ID: az account show --query tenantId -o tsv
@@ -58,4 +58,4 @@ enable_geo_redundancy    = true   # Data replicated to another region
 enable_continuous_backup = true   # Point-in-time recovery
 aks_node_count           = 3      # Minimum 3 nodes for HA
 aks_max_node_count       = 10     # Auto-scale up to 10
-aks_node_size            = "Standard_D4s_v3"  # Production-grade VMs
+aks_node_size            = "Standard_D4s_v3"  # Production-grade (4 vCPU, 16GB RAM) - Available in SE Asia

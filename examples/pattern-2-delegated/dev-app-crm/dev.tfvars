@@ -16,7 +16,7 @@
 company_name = "contoso"
 environment  = "dev"
 workload     = "crm"
-location     = "eastus"
+location     = "southeastasia"  # Singapore - closest to Indonesia
 
 # ----------------------------------------------------------------------------
 # Tags (for cost tracking and organization)
