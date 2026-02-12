@@ -54,4 +54,4 @@ enable_auto_scaling     = false  # Fixed size
 enable_geo_redundancy   = false  # Single region OK
 enable_continuous_backup = false  # Periodic backup OK
 aks_node_count          = 1       # Single node
-aks_node_size           = "Standard_B2s"  # Small/cheap VM
+aks_node_size           = "Standard_D8ds_v5"  # Available in indonesiacentral

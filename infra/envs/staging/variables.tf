@@ -168,5 +168,5 @@ variable "aks_node_count" {
 variable "aks_node_size" {
   description = "AKS node VM size"
   type        = string
-  default     = "Standard_B2ms"  # Staging: Medium size
+  default     = "Standard_D4ds_v5"  # Staging: Medium size, available in more regions
 }
