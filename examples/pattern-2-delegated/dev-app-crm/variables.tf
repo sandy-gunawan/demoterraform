@@ -1,6 +1,10 @@
 # ============================================================================
 # CORE VARIABLES
 # ============================================================================
+# 🎓 THESE VARIABLES are overridden in dev.tfvars.
+#    The "default" values here are fallbacks if dev.tfvars doesn't set them.
+#    HOW TO CHANGE: Edit dev.tfvars (not this file!) for environment-specific values.
+# ============================================================================
 
 variable "company_name" {
   description = "Company or organization name"
@@ -53,6 +57,11 @@ variable "app_service_sku" {
 
 # ============================================================================
 # COSMOS DB CONFIGURATION
+# ============================================================================
+# 🎓 REQUEST UNITS (RU): Cosmos DB's measure of throughput.
+#    400 RU = ~$24/month per container (minimum). Higher RU = faster queries.
+#    Dev: 400 RU (minimum, save cost)
+#    Prod: 4000+ RU with autoscale (handle real traffic)
 # ============================================================================
 
 variable "cosmos_consistency_level" {

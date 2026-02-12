@@ -1,5 +1,16 @@
 # Global Naming and Tagging Standards
-# All teams must inherit these standards to ensure consistency
+# =============================================================================
+# 🎓 WHAT IS THIS FILE? The "source of truth" for naming and tagging.
+#    All teams must inherit these standards for consistency.
+#
+# 🎓 WHO USES THIS? Every environment via:
+#    module "global_standards" { source = "../../global" }
+#
+# 🎓 WHAT IT PROVIDES:
+#    - resource_names: standardized names for all resource types
+#    - common_tags: standard tags applied to every resource
+#    - location_short: region abbreviations for storage accounts (length limits)
+# =============================================================================
 
 locals {
   # Naming Convention: {org}-{project}-{resource}-{env}

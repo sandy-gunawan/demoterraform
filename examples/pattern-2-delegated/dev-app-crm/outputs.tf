@@ -1,6 +1,11 @@
 # ============================================================================
 # OUTPUTS - CRM Application
 # ============================================================================
+# 🎓 THESE VALUES are printed after "terraform apply" and can be used by:
+#    1. Developers: to find endpoints, names, URLs for their app
+#    2. CI/CD: to capture values for deployment scripts
+#    3. Other Terraform configs: via terraform_remote_state data source
+# ============================================================================
 
 output "resource_group_name" {
   description = "Resource group name"
@@ -53,6 +58,9 @@ output "managed_identity_client_id" {
 
 # ============================================================================
 # NETWORKING REFERENCE (Read from Platform team)
+# ============================================================================
+# 🎓 These outputs confirm which Platform VNet/subnet we're using.
+#    Useful for verifying the data sources resolved correctly.
 # ============================================================================
 
 output "vnet_name_used" {

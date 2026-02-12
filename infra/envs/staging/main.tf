@@ -3,6 +3,18 @@
 # PHILOSOPHY: Test before production
 # - Add monitoring and basic hardening
 # - Still cost-conscious, no expensive features
+#
+# 🎓 HOW STAGING DIFFERS FROM DEV (progressive security):
+#    ┌────────────────────────────┬───────────┬────────────┐
+#    │ Feature                     │ Dev        │ Staging      │
+#    ├────────────────────────────┼───────────┼────────────┤
+#    │ App Insights (monitoring)    │ OFF        │ ON           │
+#    │ Key Vault purge protection  │ OFF        │ ON           │
+#    │ Network ACLs                │ Allow      │ Deny         │
+#    │ Log retention               │ 30 days    │ 60 days      │
+#    │ AKS nodes                   │ 1          │ 2            │
+#    │ Extra subnet (data)         │ NO         │ YES          │
+#    └────────────────────────────┴───────────┴────────────┘
 # =============================================================================
 
 terraform {
@@ -22,6 +34,9 @@ terraform {
 
 # =============================================================================
 # PROVIDER CONFIGURATION
+# =============================================================================
+# 🎓 SAME provider settings as dev/main.tf — consistency across ALL environments.
+# See infra/envs/dev/main.tf for detailed explanation of each feature.
 # =============================================================================
 provider "azurerm" {
   features {
@@ -62,7 +77,12 @@ module "global_standards" {
 }
 
 # =============================================================================
-# NETWORKING - Always created (foundation)
+# NETWORKING - Foundation (10.2.0.0/16 range for staging)
+# =============================================================================
+# 🎓 STAGING DIFFERENCES FROM DEV:
+#    - Different IP range: 10.2.0.0/16 (dev uses 10.1.0.0/16)
+#    - Extra subnet: "data-subnet" for database isolation
+#    - App NSG restricts source to VirtualNetwork only (not open to all like dev)
 # =============================================================================
 module "networking" {
   source = "../../modules/networking"
@@ -115,12 +135,14 @@ module "networking" {
     "app-nsg" = {
       security_rules = {
         "allow-https" = {
-          priority                   = 100
-          direction                  = "Inbound"
-          access                     = "Allow"
-          protocol                   = "Tcp"
-          source_port_range          = "*"
-          destination_port_range     = "443"
+          priority               = 100
+          direction              = "Inbound"
+          access                 = "Allow"
+          protocol               = "Tcp"
+          source_port_range      = "*"
+          destination_port_range = "443"
+          # 🎓 STAGING: Source is "VirtualNetwork" only (dev allows "*" = anyone)
+          # This is the progressive security — tighter rules as we approach production.
           source_address_prefix      = "VirtualNetwork"
           destination_address_prefix = "*"
         }
@@ -140,7 +162,10 @@ module "networking" {
 }
 
 # =============================================================================
-# LOG ANALYTICS - Always created
+# LOG ANALYTICS - Always created (longer retention than dev)
+# =============================================================================
+# 🎓 STAGING: 60 days retention (dev: 30 days, prod: 90 days)
+#    Longer retention = more history for debugging, but costs more storage.
 # =============================================================================
 resource "azurerm_log_analytics_workspace" "main" {
   name                = "${var.project_name}-logs-staging"
@@ -168,7 +193,11 @@ resource "azurerm_application_insights" "main" {
 }
 
 # =============================================================================
-# KEY VAULT - With purge protection enabled
+# KEY VAULT - With purge protection enabled (staging security hardening)
+# =============================================================================
+# 🎓 STAGING DIFFERENCE: purge_protection = true (dev = false)
+#    This means: once a secret is deleted, it stays in "soft delete" for 90 days.
+#    You CANNOT permanently delete it — protects against accidental secret loss.
 # =============================================================================
 module "security" {
   count  = var.enable_key_vault ? 1 : 0

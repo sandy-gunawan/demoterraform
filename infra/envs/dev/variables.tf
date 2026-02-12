@@ -1,6 +1,10 @@
 # =============================================================================
 # BASIC CONFIGURATION
 # =============================================================================
+# 🎓 THESE VARIABLES define WHO you are and WHERE to deploy.
+#    Override them in dev.tfvars (e.g., location = "indonesiacentral")
+#    If not overridden, the "default" value is used.
+# =============================================================================
 
 variable "organization_name" {
   description = "Organization name for resource naming"
@@ -53,6 +57,14 @@ variable "repository_url" {
 # FEATURE TOGGLES - What to deploy
 # Dev: Keep simple, disable expensive/complex features
 # =============================================================================
+# 🎓 HOW FEATURE TOGGLES WORK:
+#    Set a variable to true/false → Terraform creates/skips the resource.
+#    In main.tf, each module uses: count = var.enable_xxx ? 1 : 0
+#    This gives you a "menu" — pick what you need, skip the rest.
+#
+# 🎓 TIP: Start with everything false in dev. Enable one at a time.
+#    Each resource adds cost. Check Azure pricing calculator first!
+# =============================================================================
 
 variable "enable_aks" {
   description = "Deploy AKS cluster"
@@ -86,7 +98,14 @@ variable "enable_key_vault" {
 
 # =============================================================================
 # SECURITY FEATURES
-# Dev: All disabled for simplicity
+# Dev: All disabled for simplicity (enable progressively in staging/prod)
+# =============================================================================
+# 🎓 WHY ALL OFF IN DEV?
+#    Security features add complexity and cost. For dev:
+#    - NAT Gateway: ~$32/month (not needed for testing)
+#    - Private Endpoints: ~$7.30/month each (makes debugging harder)
+#    - DDoS: ~$2,944/month (overkill for dev!)
+#    Enable in staging to test → Enable in prod for real.
 # =============================================================================
 
 variable "enable_nat_gateway" {
@@ -180,6 +199,11 @@ variable "aks_node_size" {
 # =============================================================================
 # COSMOS DB CONFIGURATION
 # Only used when enable_cosmosdb = true
+# =============================================================================
+# 🎓 WHEN TO CHANGE THESE:
+#    - cosmosdb_consistency_level: Only change if you understand the tradeoffs
+#      (Strong = consistent but slow, Eventual = fast but may read stale data)
+#    - cosmosdb_account_name: Must be globally unique across ALL of Azure!
 # =============================================================================
 
 variable "cosmosdb_account_name" {

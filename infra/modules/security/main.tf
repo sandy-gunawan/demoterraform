@@ -1,7 +1,14 @@
 # Security Module - Azure Key Vault
 # =============================================================================
-# This module creates Key Vault in the provided resource group.
-# Supports feature toggles for purge protection and private endpoints.
+# 🎓 WHAT IS THIS MODULE? Creates Key Vault with configurable security levels.
+#    - Dev: open network, no purge protection (easy to delete & recreate)
+#    - Staging: purge protection ON, network ACLs (test security)
+#    - Prod: all above + private endpoint (no public access at all)
+#
+# 🎓 KEY VAULT STORES: Secrets, encryption keys, SSL certificates.
+#    Apps access it via Managed Identity (passwordless authentication).
+#
+# 🎓 USED BY: infra/envs/dev/main.tf → module "security" { ... }
 # =============================================================================
 
 resource "azurerm_key_vault" "kv" {
@@ -18,7 +25,10 @@ resource "azurerm_key_vault" "kv" {
   purge_protection_enabled        = var.purge_protection_enabled
   soft_delete_retention_days      = var.soft_delete_retention_days
 
-  # Network rules
+  # 🎓 NETWORK RULES: Controls WHO can access Key Vault over the network.
+  #    bypass = "AzureServices" → trusted Azure services can always access
+  #    default_action = "Allow" (dev) or "Deny" (staging/prod)
+  #    ip_rules = whitelist specific IPs (e.g., office IP)
   network_acls {
     bypass                     = var.network_acls_bypass
     default_action             = var.network_acls_default_action
@@ -29,7 +39,9 @@ resource "azurerm_key_vault" "kv" {
   tags = var.tags
 }
 
-# Diagnostic settings - send Key Vault logs to Log Analytics
+# 🎓 DIAGNOSTIC SETTINGS: Send Key Vault audit logs to Log Analytics.
+#    Tracks WHO accessed WHAT secrets and WHEN (compliance requirement).
+#    Only created if log_analytics_workspace_id is provided.
 resource "azurerm_monitor_diagnostic_setting" "kv_diagnostics" {
   count                      = var.log_analytics_workspace_id != null ? 1 : 0
   name                       = "${var.key_vault_name}-diagnostics"
@@ -49,7 +61,9 @@ resource "azurerm_monitor_diagnostic_setting" "kv_diagnostics" {
   }
 }
 
-# Optional: Create secrets
+# 🎓 OPTIONAL SECRETS: Pre-populate Key Vault with secrets via Terraform.
+#    Example: database connection strings, API keys.
+#    Uses for_each to create multiple secrets from a map variable.
 resource "azurerm_key_vault_secret" "secrets" {
   for_each     = nonsensitive(var.secrets)
   name         = each.key
@@ -62,7 +76,10 @@ resource "azurerm_key_vault_secret" "secrets" {
   ]
 }
 
-# Optional: Private endpoint for VNet integration
+# 🎓 PRIVATE ENDPOINT: Makes Key Vault accessible ONLY from within the VNet.
+#    Think of it as removing the front door (public access) and only allowing
+#    access through a private tunnel from your VNet.
+#    Only created in Prod (count = var.enable_private_endpoint ? 1 : 0).
 resource "azurerm_private_endpoint" "kv_endpoint" {
   count               = var.enable_private_endpoint ? 1 : 0
   name                = "${var.key_vault_name}-endpoint"
@@ -80,7 +97,8 @@ resource "azurerm_private_endpoint" "kv_endpoint" {
   tags = var.tags
 }
 
-# Private DNS Zone for private endpoint
+# 🎓 PRIVATE DNS ZONE: Translates "myvault.vault.azure.net" to the private IP.
+#    Without this, your apps would still try to reach Key Vault via public DNS.
 resource "azurerm_private_dns_zone" "kv_dns" {
   count               = var.enable_private_endpoint ? 1 : 0
   name                = "privatelink.vaultcore.azure.net"

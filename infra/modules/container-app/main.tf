@@ -1,7 +1,15 @@
 # Container App Module
 # =============================================================================
-# This module creates Container Apps in the provided resource group.
-# Simplified for environment-based configuration.
+# 🎓 WHAT IS THIS MODULE? Creates a Container Apps Environment.
+#    The "environment" is like a shared hosting space for multiple container apps.
+#    Individual apps are deployed LATER (via CI/CD or az containerapp create).
+#
+# 🎓 ANALOGY: This creates the "apartment building" (environment).
+#    Your team deploys "apartments" (container apps) into it later.
+#
+# 🎓 WHY CONTAINER APPS vs AKS?
+#    Container Apps: Serverless, auto-scale to zero, simpler, pay-per-use
+#    AKS: Full Kubernetes control, larger scale, more complex
 # =============================================================================
 
 resource "azurerm_container_app_environment" "env" {

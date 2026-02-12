@@ -1,5 +1,15 @@
+# =============================================================================
+# OUTPUTS - Values displayed after "terraform apply"
+# =============================================================================
+# 🎓 WHAT ARE OUTPUTS? After Terraform creates resources, these values are
+#    printed to the screen and stored in state. Useful for:
+#    1. Seeing what was created (resource names, IDs, URLs)
+#    2. Other Terraform configs can READ these (terraform_remote_state)
+#    3. CI/CD pipelines can capture these values
+# =============================================================================
+
 output "resource_group_name" {
-  description = "Resource group name"
+  description = "Resource group name (used by Pattern 2 teams to find Platform resources)"
   value       = azurerm_resource_group.main.name
 }
 
@@ -27,8 +37,11 @@ output "deployment_info" {
 # =============================================================================
 # PATTERN 2 NETWORKING OUTPUTS
 # =============================================================================
-# These outputs help Pattern 2 teams know what VNets Platform created for them
-# Teams use data sources to read these (see examples/pattern-2-delegated/)
+# 🎓 WHO READS THESE? Pattern 2 teams (CRM, E-commerce) need to know:
+#    - What VNet was created for them (name, ID)
+#    - What subnets are available (IDs for connecting their resources)
+#    They use data sources in their own Terraform configs to read these VNets.
+#    See: examples/pattern-2-delegated/dev-app-crm/main.tf (data sources)
 # =============================================================================
 
 output "pattern2_crm_vnet" {

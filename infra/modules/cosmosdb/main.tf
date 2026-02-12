@@ -1,7 +1,20 @@
 # Azure Cosmos DB Module
 # =============================================================================
-# This module creates Cosmos DB in the provided resource group.
-# Supports feature toggles for backup, failover, and private endpoints.
+# 🎓 WHAT IS THIS MODULE? Creates Cosmos DB account + databases + containers.
+#    Supports multiple environments with progressive features:
+#    - Dev: public access, periodic backup, single region
+#    - Prod: private endpoint, continuous backup, multi-region, auto-failover
+#
+# 🎓 COSMOS DB HIERARCHY:
+#    Account (billing + network settings)
+#    └── Database (logical grouping)
+#        └── Container (where data lives, has partition key)
+#            └── Items (individual JSON documents)
+#
+# 🎓 USED BY:
+#    infra/envs/dev/main.tf  → module "cosmosdb" { ... } (public, periodic backup)
+#    infra/envs/prod/main.tf → module "cosmosdb" { ... } (private, continuous backup)
+#    Pattern 2 teams create their OWN Cosmos DB (NOT through this module)
 # =============================================================================
 
 resource "azurerm_cosmosdb_account" "db" {

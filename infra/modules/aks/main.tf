@@ -1,7 +1,18 @@
 # Azure Kubernetes Service (AKS) Module
 # =============================================================================
-# Simplified AKS module that uses the provided resource group.
-# Auto-scaling and node configuration are controlled via environment toggles.
+# 🎓 WHAT IS THIS MODULE? Creates a managed Kubernetes cluster.
+#    Terraform manages the cluster, Azure manages the Kubernetes control plane.
+#
+# 🎓 KEY DESIGN DECISIONS:
+#    - SystemAssigned identity (Azure manages credentials)
+#    - Azure CNI networking (pods get real VNet IPs)
+#    - Optional auto-scaling (dev: fixed, prod: auto-scale)
+#    - Azure Policy integration (optional compliance enforcement)
+#    - Key Vault secrets provider (mount secrets as files in pods)
+#
+# 🎓 USED BY:
+#    infra/envs/dev/main.tf  → module "aks" { ... } (1 node, no auto-scaling)
+#    infra/envs/prod/main.tf → module "aks" { ... } (3-10 nodes, auto-scaling)
 # =============================================================================
 
 resource "azurerm_kubernetes_cluster" "aks" {
@@ -12,13 +23,15 @@ resource "azurerm_kubernetes_cluster" "aks" {
   kubernetes_version  = var.kubernetes_version
 
   default_node_pool {
-    name                = "default"
+    name = "default"
+    # 🎓 CONDITIONAL LOGIC: If auto-scaling is ON, node_count must be null
+    #    (Kubernetes manages the count). If OFF, we set a fixed count.
     node_count          = var.enable_auto_scaling ? null : var.node_count
     vm_size             = var.vm_size
     enable_auto_scaling = var.enable_auto_scaling
     min_count           = var.enable_auto_scaling ? var.min_node_count : null
     max_count           = var.enable_auto_scaling ? var.max_node_count : null
-    vnet_subnet_id      = var.vnet_subnet_id
+    vnet_subnet_id      = var.vnet_subnet_id # ← Which subnet AKS nodes live in
 
     upgrade_settings {
       max_surge = "10%"
@@ -62,6 +75,9 @@ resource "azurerm_kubernetes_cluster" "aks" {
 
   tags = var.tags
 
+  # 🎓 LIFECYCLE: Ignore node_count changes.
+  #    WHY? Auto-scaler changes node_count at runtime. If we don't ignore it,
+  #    next "terraform apply" would reset it back to the original value!
   lifecycle {
     ignore_changes = [
       default_node_pool[0].node_count

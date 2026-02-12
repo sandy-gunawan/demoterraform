@@ -1,7 +1,18 @@
 # WebApp Module - Azure App Service
 # =============================================================================
-# This module creates App Service in the provided resource group.
-# Simplified for environment-based configuration.
+# 🎓 WHAT IS THIS MODULE? Creates App Service Plan + Web App.
+#    App Service is Azure's managed web hosting (like Heroku or Vercel).
+#    You deploy code or Docker containers, Azure handles the rest.
+#
+# 🎓 TWO RESOURCES NEEDED:
+#    1. Service Plan = the "machine" (CPU, RAM, pricing tier)
+#    2. Web App = your application running ON that machine
+#
+# 🎓 SUPPORTS:
+#    - Linux or Windows hosting
+#    - Docker, .NET, Java, Node.js, Python, PHP, Ruby, Go
+#    - VNet integration, IP restrictions, custom domains
+#    - Health checks, deployment slots, auto-scaling
 # =============================================================================
 
 resource "azurerm_service_plan" "plan" {
@@ -14,6 +25,8 @@ resource "azurerm_service_plan" "plan" {
   tags = var.tags
 }
 
+# 🎓 LINUX WEB APP: Created only when os_type = "Linux" (count pattern).
+#    Linux is cheaper than Windows for the same SKU tier.
 resource "azurerm_linux_web_app" "webapp" {
   count               = var.os_type == "Linux" ? 1 : 0
   name                = var.app_name

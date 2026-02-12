@@ -3,6 +3,21 @@
 # PHILOSOPHY: Maximum security, high availability, compliance-ready
 # - All security features enabled
 # - Auto-scaling, geo-redundancy, continuous backup
+#
+# 🎓 HOW PROD DIFFERS FROM DEV AND STAGING (full security):
+#    ┌────────────────────────────┬─────────┬───────────┬─────────────┐
+#    │ Feature                     │ Dev     │ Staging   │ Prod          │
+#    ├────────────────────────────┼─────────┼───────────┼─────────────┤
+#    │ NAT Gateway                 │ OFF     │ OFF       │ ON            │
+#    │ Private Endpoints           │ OFF     │ OFF       │ ON            │
+#    │ DDoS Protection             │ OFF     │ OFF       │ ON            │
+#    │ AKS Auto-scaling            │ OFF     │ OFF       │ ON (3→10)     │
+#    │ Cosmos DB Failover          │ OFF     │ OFF       │ ON            │
+#    │ Continuous Backup           │ OFF     │ OFF       │ ON            │
+#    │ NSG deny-all-inbound rule   │ NO      │ NO        │ YES           │
+#    │ Log retention               │ 30 days │ 60 days   │ 90 days       │
+#    │ Private Endpoint subnet     │ NO      │ NO        │ YES           │
+#    └────────────────────────────┴─────────┴───────────┴─────────────┘
 # =============================================================================
 
 terraform {
@@ -62,7 +77,13 @@ module "global_standards" {
 }
 
 # =============================================================================
-# NETWORKING - With NAT Gateway and tighter security
+# NETWORKING - With NAT Gateway, tighter NSGs, and private endpoint subnet
+# =============================================================================
+# 🎓 PROD DIFFERENCES FROM DEV/STAGING:
+#    - NAT Gateway enabled (all outbound traffic gets a fixed IP for whitelisting)
+#    - Extra "pe-subnet" for private endpoints (Key Vault, Cosmos DB)
+#    - NSGs have explicit "deny-all-inbound" rules (only allowed traffic gets through)
+#    - Larger AKS subnet: /23 instead of /24 (510 IPs vs 254 for production scale)
 # =============================================================================
 module "networking" {
   source = "../../modules/networking"
@@ -74,7 +95,7 @@ module "networking" {
 
   subnets = {
     "aks-subnet" = {
-      address_prefixes  = ["10.3.1.0/23"] # Larger subnet for production scale
+      address_prefixes  = ["10.3.1.0/23"] # 🎓 PROD: /23 = 510 IPs (dev uses /24 = 254)
       service_endpoints = ["Microsoft.Sql", "Microsoft.Storage", "Microsoft.KeyVault", "Microsoft.AzureCosmosDB"]
     }
     "app-subnet" = {
@@ -86,8 +107,8 @@ module "networking" {
       service_endpoints = ["Microsoft.Sql", "Microsoft.Storage"]
     }
     "pe-subnet" = {
-      address_prefixes  = ["10.3.5.0/24"] # For private endpoints
-      service_endpoints = []
+      address_prefixes  = ["10.3.5.0/24"] # 🎓 PROD ONLY: For private endpoints to Key Vault, Cosmos DB
+      service_endpoints = []              # Private endpoints don't need service endpoints
     }
   }
 
@@ -148,8 +169,8 @@ module "networking" {
           access                     = "Allow"
           protocol                   = "Tcp"
           source_port_range          = "*"
-          destination_port_range     = "1433"
-          source_address_prefix      = "10.3.3.0/24" # app-subnet
+          destination_port_range     = "1433"        # SQL Server port
+          source_address_prefix      = "10.3.3.0/24" # 🎓 ONLY app-subnet can reach database
           destination_address_prefix = "*"
         }
         "deny-all-inbound" = {
@@ -172,8 +193,9 @@ module "networking" {
     "data-subnet" = "data-nsg"
   }
 
-  # Feature toggle: NAT Gateway ENABLED for production
-  create_nat_gateway = var.enable_nat_gateway # true
+  # 🎓 PROD: NAT Gateway ENABLED — all outbound traffic from VNet uses a fixed
+  #    public IP. Essential for whitelisting with external services.
+  create_nat_gateway = var.enable_nat_gateway # true in prod.tfvars
 
   tags = module.global_standards.common_tags
 }
@@ -207,7 +229,12 @@ resource "azurerm_application_insights" "main" {
 }
 
 # =============================================================================
-# KEY VAULT - Full security: purge protection, network ACLs
+# KEY VAULT - Full security: purge protection, network ACLs, private endpoint
+# =============================================================================
+# 🎓 PROD DIFFERENCES:
+#    - Purge protection: ON (can't permanently delete secrets for 90 days)
+#    - Network ACLs: Deny (only whitelisted IPs/VNets can access)
+#    - Private Endpoint: ON (Key Vault accessible only from within the VNet)
 # =============================================================================
 module "security" {
   count  = var.enable_key_vault ? 1 : 0
@@ -231,7 +258,12 @@ module "security" {
 }
 
 # =============================================================================
-# AKS - With auto-scaling enabled
+# AKS - With auto-scaling (3→10 nodes based on load)
+# =============================================================================
+# 🎓 PROD DIFFERENCES:
+#    - Auto-scaling ON: cluster grows/shrinks based on CPU/memory demand
+#    - 3 minimum nodes: high availability (survives 1 node failure)
+#    - Standard_D4s_v3: larger VMs (4 vCPU, 16GB) for production workloads
 # =============================================================================
 module "aks" {
   count  = var.enable_aks ? 1 : 0
@@ -278,7 +310,13 @@ module "container_apps" {
 }
 
 # =============================================================================
-# COSMOS DB - With geo-redundancy and continuous backup
+# COSMOS DB - With geo-redundancy, auto-failover, continuous backup
+# =============================================================================
+# 🎓 PROD DIFFERENCES:
+#    - Auto-failover: if primary region is down, automatically switch to secondary
+#    - Multi-region writes: data can be written from multiple regions (if geo enabled)
+#    - Private access only: no public internet access (uses private endpoint)
+#    - Continuous backup: point-in-time restore (vs periodic snapshots in dev)
 # =============================================================================
 module "cosmosdb" {
   count  = var.enable_cosmosdb ? 1 : 0
@@ -288,11 +326,11 @@ module "cosmosdb" {
   account_name        = "${var.project_name}cosmosprod" # No hyphens
   location            = var.location
 
-  # Feature toggles - Production has all reliability features
-  enable_automatic_failover       = true                          # Auto-failover
-  enable_multiple_write_locations = var.enable_geo_redundancy     # Multi-region writes
-  public_network_access_enabled   = !var.enable_private_endpoints # Private only if PE enabled
-  backup_type                     = var.enable_continuous_backup ? "Continuous" : "Periodic"
+  # Feature toggles — Production has ALL reliability features
+  enable_automatic_failover       = true                                                     # 🎓 Auto-failover to secondary region
+  enable_multiple_write_locations = var.enable_geo_redundancy                                # Multi-region writes (if enabled)
+  public_network_access_enabled   = !var.enable_private_endpoints                            # 🎓 Public OFF when private ON
+  backup_type                     = var.enable_continuous_backup ? "Continuous" : "Periodic" # 🎓 Point-in-time restore
 
   # Private endpoint for Cosmos DB (if enabled)
   enable_private_endpoint    = var.enable_private_endpoints
@@ -320,7 +358,12 @@ module "webapp" {
 }
 
 # =============================================================================
-# DDOS PROTECTION PLAN - For production (expensive but important)
+# DDOS PROTECTION PLAN - Production only (expensive but critical)
+# =============================================================================
+# 🎓 WHAT IS DDOS? Distributed Denial of Service attack = flooding your app with
+#    fake traffic until real users can't access it.
+# 🎓 WHY EXPENSIVE? ~$2,944/month! Only enable for production with real users.
+# 🎓 WHAT IT DOES: Automatically detects + mitigates attack traffic.
 # =============================================================================
 resource "azurerm_network_ddos_protection_plan" "main" {
   count = var.enable_ddos_protection ? 1 : 0
