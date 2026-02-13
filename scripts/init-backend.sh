@@ -1,7 +1,7 @@
 #!/bin/bash
 # Initialize Terraform Backend (Azure Storage Account)
 # Creates a hardened Azure Storage Account for Terraform state
-# Features: GRS replication, blob versioning, soft delete (90 days),
+# Features: region-compatible replication, blob versioning, soft delete (90 days),
 #           storage firewall, diagnostic logging, resource lock
 
 set -e
@@ -17,6 +17,7 @@ RESOURCE_GROUP_NAME="contoso-tfstate-rg"
 STORAGE_ACCOUNT_NAME="stcontosotfstate001"
 CONTAINER_NAME="tfstate"
 LOCATION="indonesiacentral"
+STORAGE_SKU="Standard_LRS"
 SOFT_DELETE_DAYS=90
 
 echo "Configuration:"
@@ -24,7 +25,7 @@ echo "  Resource Group: $RESOURCE_GROUP_NAME"
 echo "  Storage Account: $STORAGE_ACCOUNT_NAME"
 echo "  Container: $CONTAINER_NAME"
 echo "  Location: $LOCATION"
-echo "  Replication: Standard_GRS (geo-redundant)"
+echo "  Replication: $STORAGE_SKU"
 echo "  Soft Delete: ${SOFT_DELETE_DAYS} days"
 echo ""
 
@@ -66,12 +67,12 @@ az group create \
   --output table
 
 # Create storage account with hardened settings
-echo "Creating storage account (Standard_GRS with hardened security)..."
+echo "Creating storage account ($STORAGE_SKU with hardened security)..."
 az storage account create \
   --name $STORAGE_ACCOUNT_NAME \
   --resource-group $RESOURCE_GROUP_NAME \
   --location $LOCATION \
-  --sku Standard_GRS \
+  --sku $STORAGE_SKU \
   --kind StorageV2 \
   --encryption-services blob \
   --https-only true \
@@ -155,7 +156,7 @@ echo ""
 echo "=========================================="
 echo "Security Summary"
 echo "=========================================="
-echo "  ✓ Standard_GRS geo-redundant replication"
+echo "  ✓ $STORAGE_SKU replication"
 echo "  ✓ Blob versioning enabled"
 echo "  ✓ Blob soft delete: ${SOFT_DELETE_DAYS} days"
 echo "  ✓ Container soft delete: ${SOFT_DELETE_DAYS} days"

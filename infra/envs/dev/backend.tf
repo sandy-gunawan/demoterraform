@@ -29,7 +29,7 @@
 #     --name stcontosotfstate001 \
 #     --resource-group contoso-tfstate-rg \
 #     --location indonesiacentral \
-#     --sku Standard_GRS
+#     --sku Standard_LRS
 #
 #   # Create container
 #   az storage container create \

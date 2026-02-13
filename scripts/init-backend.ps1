@@ -1,6 +1,6 @@
 # Initialize Terraform Backend (Azure Storage Account)
 # PowerShell version for Windows users
-# Features: GRS replication, blob versioning, soft delete (90 days),
+# Features: region-compatible replication, blob versioning, soft delete (90 days),
 #           storage firewall, diagnostic logging, resource lock
 
 $ErrorActionPreference = "Stop"
@@ -16,6 +16,7 @@ $RESOURCE_GROUP_NAME = "contoso-tfstate-rg"
 $STORAGE_ACCOUNT_NAME = "stcontosotfstate001"
 $CONTAINER_NAME = "tfstate"
 $LOCATION = "indonesiacentral"
+$STORAGE_SKU = "Standard_LRS"
 $SOFT_DELETE_DAYS = 90
 
 Write-Host "Configuration:"
@@ -23,7 +24,7 @@ Write-Host "  Resource Group: $RESOURCE_GROUP_NAME"
 Write-Host "  Storage Account: $STORAGE_ACCOUNT_NAME"
 Write-Host "  Container: $CONTAINER_NAME"
 Write-Host "  Location: $LOCATION"
-Write-Host "  Replication: Standard_GRS (geo-redundant)"
+Write-Host "  Replication: $STORAGE_SKU"
 Write-Host "  Soft Delete: $SOFT_DELETE_DAYS days"
 Write-Host ""
 
@@ -66,12 +67,12 @@ az group create `
   --output table
 
 # Create storage account with hardened settings
-Write-Host "Creating storage account (Standard_GRS with hardened security)..." -ForegroundColor Green
+Write-Host "Creating storage account ($STORAGE_SKU with hardened security)..." -ForegroundColor Green
 az storage account create `
   --name $STORAGE_ACCOUNT_NAME `
   --resource-group $RESOURCE_GROUP_NAME `
   --location $LOCATION `
-  --sku Standard_GRS `
+  --sku $STORAGE_SKU `
   --kind StorageV2 `
   --encryption-services blob `
   --https-only true `
@@ -155,7 +156,7 @@ Write-Host ""
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "Security Summary" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host "  - Standard_GRS geo-redundant replication" -ForegroundColor Green
+Write-Host "  - $STORAGE_SKU replication" -ForegroundColor Green
 Write-Host "  - Blob versioning enabled" -ForegroundColor Green
 Write-Host "  - Blob soft delete: $SOFT_DELETE_DAYS days" -ForegroundColor Green
 Write-Host "  - Container soft delete: $SOFT_DELETE_DAYS days" -ForegroundColor Green
