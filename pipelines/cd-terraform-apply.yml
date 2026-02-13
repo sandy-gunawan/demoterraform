@@ -13,14 +13,6 @@ trigger:
 
 pr: none  # Don't run on PRs
 
-variables:
-  - name: terraformVersion
-    value: '1.5.7'
-  - name: serviceConnection
-    value: 'sc-azure-oidc-or-mi'
-  - name: azureSubscription
-    value: ''  # Set in pipeline variables
-
 parameters:
   - name: environment
     displayName: 'Target Environment'
@@ -30,10 +22,32 @@ parameters:
       - dev
       - staging
       - prod
+  - name: deploymentTarget
+    displayName: 'Terraform Root Module Path'
+    type: string
+    default: 'infra/envs'
+    values:
+      - infra/envs
+      - infra/platform
+      - infra/envs-multiapp
+  - name: varFiles
+    displayName: 'Var files (comma-separated, optional)'
+    type: string
+    default: ''
   - name: autoApprove
     displayName: 'Auto Approve (Skip Approval Gate)'
     type: boolean
     default: false
+
+variables:
+  - name: terraformVersion
+    value: '1.5.7'
+  - name: serviceConnection
+    value: 'sc-azure-oidc-or-mi'
+  - name: azureSubscription
+    value: ''  # Set in pipeline variables
+  - name: workingDirectory
+    value: '$(System.DefaultWorkingDirectory)/${{ parameters.deploymentTarget }}/${{ parameters.environment }}'
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -53,9 +67,11 @@ stages:
               targetType: 'inline'
               script: |
                 $env = "${{ parameters.environment }}"
-                $workDir = "$(System.DefaultWorkingDirectory)/infra/envs/$env"
+                $workDir = "$(workingDirectory)"
+                $varFilesParam = "${{ parameters.varFiles }}"
                 
                 Write-Host "Target Environment: $env"
+                Write-Host "Deployment Target: ${{ parameters.deploymentTarget }}"
                 Write-Host "Working Directory: $workDir"
                 
                 if (!(Test-Path $workDir)) {
@@ -64,7 +80,13 @@ stages:
                 }
                 
                 # Check for required files
-                $requiredFiles = @("main.tf", "variables.tf", "$env.tfvars")
+                $requiredFiles = @("main.tf", "variables.tf")
+                if ([string]::IsNullOrWhiteSpace($varFilesParam)) {
+                  $requiredFiles += "$env.tfvars"
+                } else {
+                  $customVarFiles = $varFilesParam.Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
+                  $requiredFiles += $customVarFiles
+                }
                 foreach ($file in $requiredFiles) {
                   $filePath = Join-Path $workDir $file
                   if (!(Test-Path $filePath)) {
@@ -101,7 +123,7 @@ stages:
                     scriptType: 'bash'
                     scriptLocation: 'inlineScript'
                     addSpnToEnvironment: true
-                    workingDirectory: '$(System.DefaultWorkingDirectory)/infra/envs/${{ parameters.environment }}'
+                    workingDirectory: '$(workingDirectory)'
                     inlineScript: |
                       # Set OIDC environment variables
                       export ARM_CLIENT_ID=$servicePrincipalId
@@ -123,18 +145,28 @@ stages:
                     scriptType: 'bash'
                     scriptLocation: 'inlineScript'
                     addSpnToEnvironment: true
-                    workingDirectory: '$(System.DefaultWorkingDirectory)/infra/envs/${{ parameters.environment }}'
+                    workingDirectory: '$(workingDirectory)'
                     inlineScript: |
                       export ARM_CLIENT_ID=$servicePrincipalId
                       export ARM_TENANT_ID=$tenantId
                       export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
                       export ARM_USE_OIDC=true
+
+                      # Build var-file arguments
+                      if [ -z "${{ parameters.varFiles }}" ]; then
+                        TF_VAR_ARGS="-var-file=${{ parameters.environment }}.tfvars"
+                      else
+                        TF_VAR_ARGS=""
+                        IFS=',' read -ra FILES <<< "${{ parameters.varFiles }}"
+                        for f in "${FILES[@]}"; do
+                          file_trimmed=$(echo "$f" | xargs)
+                          TF_VAR_ARGS="$TF_VAR_ARGS -var-file=$file_trimmed"
+                        done
+                      fi
                       
                       # Generate fresh plan
-                      terraform plan \
-                        -var-file="${{ parameters.environment }}.tfvars" \
-                        -out=tfplan-apply \
-                        -input=false
+                      echo "Using var args: $TF_VAR_ARGS"
+                      terraform plan $TF_VAR_ARGS -out=tfplan-apply -input=false
                       
                       echo ""
                       echo "==================================="
@@ -149,7 +181,7 @@ stages:
                     scriptType: 'bash'
                     scriptLocation: 'inlineScript'
                     addSpnToEnvironment: true
-                    workingDirectory: '$(System.DefaultWorkingDirectory)/infra/envs/${{ parameters.environment }}'
+                    workingDirectory: '$(workingDirectory)'
                     inlineScript: |
                       export ARM_CLIENT_ID=$servicePrincipalId
                       export ARM_TENANT_ID=$tenantId
@@ -190,7 +222,7 @@ stages:
                     azureSubscription: $(serviceConnection)
                     scriptType: 'bash'
                     scriptLocation: 'inlineScript'
-                    workingDirectory: '$(System.DefaultWorkingDirectory)/infra/envs/${{ parameters.environment }}'
+                    workingDirectory: '$(workingDirectory)'
                     inlineScript: |
                       # Export outputs to JSON
                       terraform output -json > outputs.json
@@ -200,7 +232,7 @@ stages:
                 - task: PublishPipelineArtifact@1
                   displayName: 'Publish Terraform Outputs'
                   inputs:
-                    targetPath: '$(System.DefaultWorkingDirectory)/infra/envs/${{ parameters.environment }}/outputs.json'
+                    targetPath: '$(workingDirectory)/outputs.json'
                     artifact: 'terraform-outputs-${{ parameters.environment }}'
                     publishLocation: 'pipeline'
 
