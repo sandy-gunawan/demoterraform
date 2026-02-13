@@ -18,6 +18,7 @@ This documentation explains the **Enterprise Terraform Framework for Azure** to 
 | 04 | [Pattern 1 Demo — Centralized](04-PATTERN1-DEMO.md) | **Standalone test case**: Platform layer + Application layer deployment with feature toggles | Everyone (main demo #1) |
 | 05 | [Pattern 2 Demo — Delegated](05-PATTERN2-DEMO.md) | **Standalone test case**: Application teams deploy independently with own state files | Everyone (main demo #2) |
 | 06 | [Mermaid Diagrams Collection](06-DIAGRAMS.md) | Architecture diagrams, flow diagrams, team responsibility charts | Everyone |
+| 07 | [Pattern 1 Multi-App Newbie Guide](07-PATTERN1-MULTIAPP-NEWBIE-GUIDE.md) | Beginner-friendly guide for centralized multi-team onboarding in `envs-multiapp` | Beginners, Managers, Tech Leads |
 
 ---
 
@@ -29,6 +30,7 @@ This documentation explains the **Enterprise Terraform Framework for Azure** to 
 4. **Demo 04** → Pattern 1: Centralized deployment (can run as CI/CD test case)
 5. **Demo 05** → Pattern 2: Delegated per-team deployment (can run as CI/CD test case)
 6. **Reference 06** for diagrams during presentations
+7. **Read 07** for the new multi-app Pattern 1 flow (`infra/envs-multiapp/dev`)
 
 ### For CI/CD Demo
 
