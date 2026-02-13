@@ -29,7 +29,7 @@ Write-Host ""
 
 # Check if Azure CLI is installed
 if (!(Get-Command az -ErrorAction SilentlyContinue)) {
-    Write-Host "❌ Azure CLI is not installed. Please install it first." -ForegroundColor Red
+    Write-Host "ERROR: Azure CLI is not installed. Please install it first." -ForegroundColor Red
     Write-Host "   https://docs.microsoft.com/en-us/cli/azure/install-azure-cli" -ForegroundColor Yellow
     exit 1
 }
@@ -38,7 +38,7 @@ if (!(Get-Command az -ErrorAction SilentlyContinue)) {
 try {
     $null = az account show 2>$null
 } catch {
-    Write-Host "⚠️  Not logged in to Azure. Running 'az login'..." -ForegroundColor Yellow
+    Write-Host "WARNING: Not logged in to Azure. Running 'az login'..." -ForegroundColor Yellow
     az login
 }
 
@@ -150,56 +150,53 @@ $STORAGE_RESOURCE_ID = az storage account show `
   --query id -o tsv
 
 Write-Host ""
-Write-Host "✓ Backend infrastructure created successfully!" -ForegroundColor Green
+Write-Host "OK: Backend infrastructure created successfully!" -ForegroundColor Green
 Write-Host ""
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "Security Summary" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host "  ✓ Standard_GRS geo-redundant replication" -ForegroundColor Green
-Write-Host "  ✓ Blob versioning enabled" -ForegroundColor Green
-Write-Host "  ✓ Blob soft delete: $SOFT_DELETE_DAYS days" -ForegroundColor Green
-Write-Host "  ✓ Container soft delete: $SOFT_DELETE_DAYS days" -ForegroundColor Green
-Write-Host "  ✓ Storage firewall enabled (default deny)" -ForegroundColor Green
-Write-Host "  ✓ Shared key access disabled (Azure AD only)" -ForegroundColor Green
-Write-Host "  ✓ TLS 1.2 minimum enforced" -ForegroundColor Green
-Write-Host "  ✓ Public blob access disabled" -ForegroundColor Green
-Write-Host "  ✓ CanNotDelete resource lock applied" -ForegroundColor Green
-Write-Host "  ✓ Trusted Azure services allowed" -ForegroundColor Green
+Write-Host "  - Standard_GRS geo-redundant replication" -ForegroundColor Green
+Write-Host "  - Blob versioning enabled" -ForegroundColor Green
+Write-Host "  - Blob soft delete: $SOFT_DELETE_DAYS days" -ForegroundColor Green
+Write-Host "  - Container soft delete: $SOFT_DELETE_DAYS days" -ForegroundColor Green
+Write-Host "  - Storage firewall enabled (default deny)" -ForegroundColor Green
+Write-Host "  - Shared key access disabled (Azure AD only)" -ForegroundColor Green
+Write-Host "  - TLS 1.2 minimum enforced" -ForegroundColor Green
+Write-Host "  - Public blob access disabled" -ForegroundColor Green
+Write-Host "  - CanNotDelete resource lock applied" -ForegroundColor Green
+Write-Host "  - Trusted Azure services allowed" -ForegroundColor Green
 Write-Host ""
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "Next Steps" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "1. Update your backend.tf files with these values:" -ForegroundColor Yellow
-Write-Host ""
-Write-Host "   terraform {"
-Write-Host "     backend `"azurerm`" {"
-Write-Host "       resource_group_name  = `"$RESOURCE_GROUP_NAME`""
-Write-Host "       storage_account_name = `"$STORAGE_ACCOUNT_NAME`""
-Write-Host "       container_name       = `"$CONTAINER_NAME`""
-Write-Host "       key                  = `"ENV_NAME.terraform.tfstate`""
-Write-Host "       use_oidc             = true"
-Write-Host "     }"
-Write-Host "   }"
-Write-Host ""
-Write-Host "2. Initialize Terraform in your environment directory:" -ForegroundColor Yellow
-Write-Host "   cd infra\envs\dev"
-Write-Host "   terraform init"
-Write-Host ""
-Write-Host "3. Grant your service principal access to the storage account:" -ForegroundColor Yellow
-Write-Host "   az role assignment create ``"
-Write-Host "     --role `"Storage Blob Data Contributor`" ``"
-Write-Host "     --assignee <SERVICE_PRINCIPAL_ID> ``"
-Write-Host "     --scope $STORAGE_RESOURCE_ID"
-Write-Host ""
-Write-Host "4. (Optional) Add VNet rules for pipeline agents:" -ForegroundColor Yellow
-Write-Host "   az storage account network-rule add ``"
-Write-Host "     --account-name $STORAGE_ACCOUNT_NAME ``"
-Write-Host "     --resource-group $RESOURCE_GROUP_NAME ``"
-Write-Host "     --subnet <AGENT_SUBNET_RESOURCE_ID>"
-Write-Host ""
-Write-Host "5. State file keys used in this framework:" -ForegroundColor Yellow
-Write-Host "   Pattern 1 (Platform):  dev.terraform.tfstate"
-Write-Host "   Pattern 2 (CRM):       dev-app-crm.tfstate"
-Write-Host "   Pattern 2 (E-commerce): dev-app-ecommerce.tfstate"
-Write-Host ""
+Write-Host '1. Update your backend.tf files with these values:' -ForegroundColor Yellow
+Write-Host '   terraform {'
+Write-Host '     backend azurerm {'
+Write-Host ('       resource_group_name  = {0}' -f $RESOURCE_GROUP_NAME)
+Write-Host ('       storage_account_name = {0}' -f $STORAGE_ACCOUNT_NAME)
+Write-Host ('       container_name       = {0}' -f $CONTAINER_NAME)
+Write-Host '       key                  = ENV_NAME.terraform.tfstate'
+Write-Host '       use_oidc             = true'
+Write-Host '     }'
+Write-Host '   }'
+Write-Host ''
+
+Write-Host '2. Initialize Terraform in your environment directory:' -ForegroundColor Yellow
+Write-Host '   cd infra\envs\dev'
+Write-Host '   terraform init'
+Write-Host ''
+
+Write-Host '3. Grant your service principal access to the storage account:' -ForegroundColor Yellow
+Write-Host ('   az role assignment create --role ''Storage Blob Data Contributor'' --assignee <SERVICE_PRINCIPAL_ID> --scope {0}' -f $STORAGE_RESOURCE_ID)
+Write-Host ''
+
+Write-Host '4. (Optional) Add VNet rules for pipeline agents:' -ForegroundColor Yellow
+Write-Host ('   az storage account network-rule add --account-name {0} --resource-group {1} --subnet <AGENT_SUBNET_RESOURCE_ID>' -f $STORAGE_ACCOUNT_NAME, $RESOURCE_GROUP_NAME)
+Write-Host ''
+
+Write-Host '5. State file keys used in this framework:' -ForegroundColor Yellow
+Write-Host '   Pattern 1 (Platform):   dev.terraform.tfstate'
+Write-Host '   Pattern 2 (CRM):        dev-app-crm.tfstate'
+Write-Host '   Pattern 2 (E-commerce): dev-app-ecommerce.tfstate'
+Write-Host ''
