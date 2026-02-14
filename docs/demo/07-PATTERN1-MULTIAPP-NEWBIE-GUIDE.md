@@ -197,6 +197,20 @@ cd scripts
 
 After backend exists, continue with Step 1 (platform layer), then Step 2 (app layer).
 
+## Step 0.5 — Confirm Azure subscription and tenant context
+
+Before `terraform plan`, verify you are targeting the intended Azure subscription.
+
+```powershell
+az account show --query "{subscription:id, tenant:tenantId, name:name}" -o table
+az account set --subscription "<YOUR_SUBSCRIPTION_ID_OR_NAME>"
+```
+
+Also make sure `subscription_id` and `tenant_id` in your tfvars are correct:
+
+- `infra/platform/dev/dev.tfvars`
+- `infra/envs-multiapp/dev/base.dev.tfvars` (or `dev.tfvars` in legacy mode)
+
 ## Step 1 — Deploy Platform Layer first
 
 ```powershell
@@ -372,6 +386,133 @@ If later you want stronger isolation:
 - each root gets its own backend key/state file
 
 That is a maturity evolution, not a failure of current design.
+
+---
+
+## 13) Production Best Practice (Super Beginner, Non-Technical)
+
+This section explains **the production standard** in plain language for non-technical readers.
+
+### Executive summary (1 minute)
+
+- Keep **platform** and **app** infrastructure as separate layers.
+- Keep separate Terraform state files for each layer.
+- Use approval flow: **plan → review → apply**.
+- Put secrets/identity in pipeline or secure identity flow, not in plain repository files.
+
+This is the common enterprise approach because it is safer, easier to audit, and easier to scale.
+
+### Easy analogy
+
+Think of a city:
+
+- Platform layer (`infra/platform/dev`) = roads, electricity, water, security gates
+- App layer (`infra/envs-multiapp/dev`) = houses/shops built by business teams
+
+If one shop changes, you should not risk breaking city roads.
+That is why production systems separate these layers.
+
+### Why some values look repeated (normal behavior)
+
+You may see same fields in both roots:
+
+- `organization_name`, `project_name`, `environment`, `location`
+- `subscription_id`, `tenant_id`
+
+Reason:
+
+- Terraform variables are read **per root module**.
+- `platform/dev` and `envs-multiapp/dev` are separate roots.
+- So each root needs input values.
+
+This is expected behavior, not an architecture mistake.
+
+### Decision guide (non-technical)
+
+Use this quick rule:
+
+1. Does the request need new shared network/security/foundation?
+   - **Yes** → run platform first, then app layer.
+   - **No** → run app layer only.
+
+2. Is this just onboarding a new app/team using existing foundation?
+   - **Yes** → app layer only.
+
+3. Is this a compliance/security baseline update?
+   - **Yes** → platform first.
+
+### Real use-case examples
+
+#### Example A — Fast onboarding (no platform change)
+
+Request:
+- New team needs AKS + Cosmos DB.
+- Existing subnet and monitoring are already enough.
+
+Action:
+- Skip platform deployment.
+- Update app toggles/module inputs.
+- Run app-layer plan/apply.
+
+Result:
+- Faster delivery.
+- Lower risk to shared foundation.
+
+#### Example B — Security enhancement (platform first)
+
+Request:
+- Need new subnet, NSG rule, or private endpoint policy.
+
+Action:
+- Update and apply platform first.
+- Then apply app layer.
+
+Result:
+- Correct dependency order.
+- Better audit trail and rollback control.
+
+#### Example C — Deployment incident isolation
+
+Situation:
+- App-layer deployment fails.
+
+Result with this model:
+- Platform remains stable because state is separate.
+
+Business impact:
+- Smaller outage risk.
+- Faster recovery.
+
+### Advantages (why enterprises choose this)
+
+- **Safety**: app failures are less likely to impact shared platform baseline.
+- **Governance**: approvals and audit evidence are cleaner by layer.
+- **Scalability**: one platform can support many app teams.
+- **Reusability**: standard modules and patterns are reused consistently.
+- **Operational clarity**: everyone knows what is platform change vs app change.
+
+### Trade-offs (acceptable in production)
+
+- More files and commands than a single all-in-one root.
+- Teams must follow execution order rules.
+- Some common values appear in multiple inputs unless centralized.
+
+Why still best practice:
+
+- In production, safety, control, and auditability are more important than fewer commands.
+
+### Recommended operating model (simple)
+
+- Keep two layers and two state files.
+- Keep one shared non-secret environment input source (common vars).
+- Keep layer-specific toggles in each root.
+- Use secure identity and CI/CD variables for auth values.
+
+### Final takeaway
+
+- Separation is intentional and professional.
+- It reduces risk while keeping delivery fast.
+- Best mental model: **stable foundation, flexible app onboarding**.
 
 ---
 

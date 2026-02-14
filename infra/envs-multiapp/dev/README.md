@@ -8,6 +8,10 @@ This folder is a **separate root module** for experimenting with centralized mul
 
 ## How to run
 
+0. Set Azure context and tfvars IDs:
+   - `az account set --subscription "<YOUR_SUBSCRIPTION_ID_OR_NAME>"`
+   - Update `subscription_id` and `tenant_id` in `base.dev.tfvars` (or `dev.tfvars` for legacy mode)
+
 1. Deploy platform first (once):
    - `cd infra/platform/dev`
    - `terraform apply -var-file="dev.tfvars"`
@@ -34,3 +38,7 @@ This folder is a **separate root module** for experimenting with centralized mul
 - Terraform merges files from left to right; last file wins on duplicates
 
 This demonstrates multi-team usage while staying centralized (Pattern 1).
+
+For a non-technical explanation of why this two-layer pattern is production best practice (including pros/cons and real examples), see:
+
+- `docs/demo/07-PATTERN1-MULTIAPP-NEWBIE-GUIDE.md` → section **13) Production Best Practice (Super Beginner, Non-Technical)**

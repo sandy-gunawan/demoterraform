@@ -22,6 +22,18 @@ variable "location" {
   default     = "indonesiacentral"
 }
 
+variable "subscription_id" {
+  description = "Azure subscription ID (recommended to avoid wrong default subscription context)"
+  type        = string
+  default     = ""
+}
+
+variable "tenant_id" {
+  description = "Azure tenant ID"
+  type        = string
+  default     = ""
+}
+
 variable "cost_center" {
   description = "Cost center"
   type        = string

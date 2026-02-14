@@ -1,7 +1,7 @@
 # Initialize Terraform Backend (Azure Storage Account)
 # PowerShell version for Windows users
 # Features: region-compatible replication, blob versioning, soft delete (90 days),
-#           storage firewall, diagnostic logging, resource lock
+#           storage firewall, diagnostic logging
 
 $ErrorActionPreference = "Stop"
 
@@ -133,17 +133,6 @@ az storage container create `
   --auth-mode login `
   --output table
 
-# Create resource lock to prevent accidental deletion
-Write-Host "Creating resource lock on storage account..." -ForegroundColor Green
-az lock create `
-  --name "CannotDelete-TFState" `
-  --resource-group $RESOURCE_GROUP_NAME `
-  --resource $STORAGE_ACCOUNT_NAME `
-  --resource-type Microsoft.Storage/storageAccounts `
-  --lock-type CanNotDelete `
-  --notes "Protected: Terraform state storage" `
-  --output table
-
 # Get storage resource ID for outputs
 $STORAGE_RESOURCE_ID = az storage account show `
   --name $STORAGE_ACCOUNT_NAME `
@@ -164,7 +153,6 @@ Write-Host "  - Storage firewall enabled (default deny)" -ForegroundColor Green
 Write-Host "  - Shared key access disabled (Azure AD only)" -ForegroundColor Green
 Write-Host "  - TLS 1.2 minimum enforced" -ForegroundColor Green
 Write-Host "  - Public blob access disabled" -ForegroundColor Green
-Write-Host "  - CanNotDelete resource lock applied" -ForegroundColor Green
 Write-Host "  - Trusted Azure services allowed" -ForegroundColor Green
 Write-Host ""
 Write-Host "==========================================" -ForegroundColor Cyan

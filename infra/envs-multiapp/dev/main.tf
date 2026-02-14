@@ -14,6 +14,9 @@ terraform {
 }
 
 provider "azurerm" {
+  subscription_id = var.subscription_id != "" ? var.subscription_id : null
+  tenant_id       = var.tenant_id != "" ? var.tenant_id : null
+
   features {
     key_vault {
       purge_soft_delete_on_destroy    = false
@@ -25,7 +28,9 @@ provider "azurerm" {
   }
 }
 
-provider "azuread" {}
+provider "azuread" {
+  tenant_id = var.tenant_id != "" ? var.tenant_id : null
+}
 
 # This is a separate experimental Pattern 1 root module for multi-team onboarding.
 # Existing infra/envs/dev remains unchanged.
